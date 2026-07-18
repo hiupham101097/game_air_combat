@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 class SoundAssets {
-  final AudioPlayer _musicPlayer = AudioPlayer();
   final Map<String, AudioPlayer> _effectPlayers = {};
   SoundAssets(this.bundle);
 
@@ -16,21 +15,35 @@ class SoundAssets {
     _effectPlayers[name] = player;
   }
 
+  final Map<String, AudioPlayer> _musicPlayers = {};
+
   Future<void> loadMusic(String name) async {
     final player = AudioPlayer();
-    player.setAsset(_musicPathForName(name));
-    await player.load();
+    await player.setAsset(_musicPathForName(name));
+    player.setLoopMode(LoopMode.all);
+    _musicPlayers[name] = player;
   }
 
   void playEffect(String name) {
-    _effectPlayers[name]?.setAsset(_effectPathForName(name));
-    _effectPlayers[name]?.play();
+    final player = _effectPlayers[name];
+    if (player != null) {
+      player.seek(Duration.zero);
+      player.play();
+    }
   }
 
   void playMusic(String name) {
-    _musicPlayer.setAsset(_musicPathForName(name));
-    _musicPlayer.setLoopMode(LoopMode.all);
-    _musicPlayer.play();
+    _musicPlayers.forEach((key, player) {
+      if (key != name) {
+        player.stop();
+      }
+    });
+    
+    final player = _musicPlayers[name];
+    if (player != null) {
+      player.seek(Duration.zero);
+      player.play();
+    }
   }
 
   String _effectPathForName(String name) => 'assets/$name.wav';

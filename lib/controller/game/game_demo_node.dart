@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/boss.dart';
+import 'package:mini__game2/controller/enemy/boss_laser.dart';
+import 'package:mini__game2/controller/enemy/boss_carrier.dart';
 import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/flash.dart';
 import 'package:mini__game2/controller/game/game_laser.dart';
@@ -11,12 +13,15 @@ import 'package:mini__game2/controller/game/game_level_label.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
 import 'package:mini__game2/controller/game/game_ship.dart';
+import 'package:mini__game2/controller/game/player_drone.dart';
+import 'package:mini__game2/model/equipment.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
 import 'package:mini__game2/controller/player_state.dart';
 import 'package:mini__game2/controller/repeated_image.dart';
 import 'package:mini__game2/controller/setting/sound_assets.dart';
 import 'package:mini__game2/controller/star_field.dart';
 import 'package:mini__game2/main.dart';
+import 'package:mini__game2/model/weapon.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 
@@ -25,10 +30,14 @@ typedef GameOverCallback = void Function(
 
 class GameDemoNode extends NodeWithSize {
   GameDemoNode(this._images, this._spritesGame, this._spritesUI, this._sounds,
-      this._gameState, this._gameOverCallback)
+      this._gameState, this._isEventMode, this._gameOverCallback)
       : super(const Size(320.0, 320.0)) {
-    // Add background
-    _background = RepeatedImage(_images["assets/starfield.png"]!);
+    // Add background - use fiery event background in Event Mode
+    if (_isEventMode) {
+      _background = RepeatedImage(_images["assets/event_bg.png"]!);
+    } else {
+      _background = RepeatedImage(_images["assets/starfield.png"]!);
+    }
     addChild(_background);
 
     // Create starfield
@@ -64,11 +73,27 @@ class GameDemoNode extends NodeWithSize {
     _joystick = VirtualJoystick();
     _gameScreen.addChild(_joystick);
 
+    // Spawn drones if equipped
+    if (_playerState.droneEquipment != null) {
+      PlayerDrone droneLeft = PlayerDrone(_objectFactory, _playerState.droneEquipment!, _playerState.droneEquipmentLevel, true);
+      droneLeft.position = const Offset(-50, 0);
+      _level.addChild(droneLeft);
+      
+      // If rarity is epic or legendary, spawn a second drone on the right!
+      if (_playerState.droneEquipment!.rarity == Rarity.epic || 
+          _playerState.droneEquipment!.rarity == Rarity.legendary) {
+        PlayerDrone droneRight = PlayerDrone(_objectFactory, _playerState.droneEquipment!, _playerState.droneEquipmentLevel, false);
+        droneRight.position = const Offset(50, 0);
+        _level.addChild(droneRight);
+      }
+    }
+
     // Add initial game objects
     addObjects();
   }
 
   final PersistantGameState _gameState;
+  final bool _isEventMode;
 
   // Resources
   final ImageMap _images;
@@ -105,8 +130,15 @@ class GameDemoNode extends NodeWithSize {
     _gameScreen.position = Offset(0.0, gameSizeHeight);
   }
 
+  bool _isPaused = false;
+
+  void pause() => _isPaused = true;
+  void resume() => _isPaused = false;
+  bool get isPaused => _isPaused;
+
   @override
   void update(double dt) {
+    if (_isPaused) return;
     // Scroll the level
     _scroll = _level.scroll(_playerState.scrollSpeed);
     _starField.move(0.0, _playerState.scrollSpeed);
@@ -125,10 +157,10 @@ class GameDemoNode extends NodeWithSize {
     // Add shots
     if (_framesToFire == 0 && _joystick.isDown && !_gameOver) {
       fire();
-      _framesToFire = (_playerState.speedLaserActive)
-          ? _framesBetweenShots ~/ 2
-          : _framesBetweenShots;
+      int baseFrames = (_playerState.speedLaserActive) ? _framesBetweenShots ~/ 2 : _framesBetweenShots;
+      _framesToFire = (baseFrames / _level.ship.fireRateMultiplier).round();
     }
+
     if (_framesToFire > 0) _framesToFire--;
 
     // Move game objects
@@ -147,6 +179,37 @@ class GameDemoNode extends NodeWithSize {
     }
 
     if (_gameOver) return;
+
+    // Nuke Logic
+    if (_playerState.activateNuke) {
+      _playerState.activateNuke = false;
+      _sounds.playEffect("explosion_boss");
+      Flash flash = Flash(size, 1.0);
+      addChild(flash);
+      
+      List<Node> nukeTargets = List<Node>.from(_level.children);
+      for (Node node in nukeTargets) {
+        if (node is GameObject && node.canBeDamaged &&
+            node.canDamageShip && // Only kill enemies (not power ups)
+            node is! EnemyBoss && node is! BossLaser && node is! BossCarrier) {
+          node.addDamage(node.maxDamage);
+        }
+      }
+    }
+
+    // Magnet Logic
+    if (_playerState.magnetActive) {
+      List<Node> collectables = List<Node>.from(_level.children);
+      for (Node node in collectables) {
+        if (node is GameObject && node.canBeCollected) {
+          Offset dir = _level.ship.position - node.position;
+          double dist = dir.distance;
+          if (dist > 1.0 && dist < 300.0) { // Avoid div-by-zero when dist==0
+            node.position += (dir / dist) * 8.0;
+          }
+        }
+      }
+    }
 
     // Check for collisions between lasers and objects that can take damage
     List<Laser> lasers = <Laser>[];
@@ -175,8 +238,10 @@ class GameDemoNode extends NodeWithSize {
       if (node is GameObject && node.canDamageShip) {
         if (node.collidingWith(_level.ship)) {
           if (_playerState.shieldActive) {
-            // Hit, but saved by the shield!
-            if (node is! EnemyBoss) node.destroy();
+            // Hit, but saved by the shield! Only destroy non-boss enemies
+            if (node is! EnemyBoss && node is! BossLaser && node is! BossCarrier) {
+              node.destroy();
+            }
           } else {
             // The ship was hit :(
             killShip();
@@ -205,41 +270,95 @@ class GameDemoNode extends NodeWithSize {
     int level = chunk ~/ chunksPerLevel + _gameState.currentStartingLevel;
     int part = chunk % chunksPerLevel;
 
-    if (part == 0) {
-      LevelLabel lbl = LevelLabel(_objectFactory, level + 1);
-      lbl.position = Offset(0.0, yPos + chunkSpacing / 2.0 - 150.0);
-
-      _topLevelReached = level;
-      _level.addChild(lbl);
-    } else if (part == 1) {
-      _objectFactory.addAsteroids(level, yPos);
-    } else if (part == 2) {
-      _objectFactory.addEnemyScoutSwarm(level, yPos);
-    } else if (part == 3) {
-      _objectFactory.addAsteroids(level, yPos);
-    } else if (part == 4) {
-      _objectFactory.addEnemyDestroyerSwarm(level, yPos);
-    } else if (part == 5) {
-      _objectFactory.addAsteroids(level, yPos);
-    } else if (part == 6) {
-      _objectFactory.addEnemyScoutSwarm(level, yPos);
-    } else if (part == 7) {
-      _objectFactory.addAsteroids(level, yPos);
-    } else if (part == 8) {
-      _objectFactory.addBossFight(level, yPos);
+    if (_isEventMode) {
+      // ⚡ EVENT MODE: Boss Rush — faster and more intense
+      if (part == 0) {
+        LevelLabel lbl = LevelLabel(_objectFactory, level + 1);
+        lbl.position = Offset(0.0, yPos + chunkSpacing / 2.0 - 150.0);
+        _topLevelReached = level;
+        _level.addChild(lbl);
+      } else if (part == 1) {
+        _objectFactory.addEnemyDestroyerSwarm(level + 2, yPos);
+      } else if (part == 2) {
+        _objectFactory.addEnemyScoutSwarm(level + 2, yPos);
+        _objectFactory.addAsteroids(level + 1, yPos);
+      } else if (part == 3) {
+        // EVENT: Mini boss wave
+        _objectFactory.addBossFight(level, yPos);
+      } else if (part == 4) {
+        _objectFactory.addEnemyDestroyerSwarm(level + 3, yPos);
+        _objectFactory.addEnemyScoutSwarm(level + 1, yPos);
+      } else if (part == 5) {
+        _objectFactory.addAsteroids(level + 2, yPos);
+        _objectFactory.addEnemyScoutSwarm(level + 2, yPos);
+      } else if (part == 6) {
+        _objectFactory.addEnemyDestroyerSwarm(level + 2, yPos);
+      } else if (part == 7) {
+        // EVENT: Double everything
+        _objectFactory.addAsteroids(level + 3, yPos);
+        _objectFactory.addEnemyDestroyerSwarm(level + 2, yPos);
+      } else if (part == 8) {
+        // EVENT: High-level Boss every single loop
+        _objectFactory.addBossFight(level + 2, yPos);
+      }
+    } else {
+      // Normal Mode
+      if (part == 0) {
+        LevelLabel lbl = LevelLabel(_objectFactory, level + 1);
+        lbl.position = Offset(0.0, yPos + chunkSpacing / 2.0 - 150.0);
+        _topLevelReached = level;
+        _level.addChild(lbl);
+      } else if (part == 1) {
+        _objectFactory.addAsteroids(level, yPos);
+      } else if (part == 2) {
+        _objectFactory.addEnemyScoutSwarm(level, yPos);
+      } else if (part == 3) {
+        _objectFactory.addAsteroids(level, yPos);
+      } else if (part == 4) {
+        _objectFactory.addEnemyDestroyerSwarm(level, yPos);
+      } else if (part == 5) {
+        _objectFactory.addAsteroids(level, yPos);
+      } else if (part == 6) {
+        _objectFactory.addEnemyScoutSwarm(level, yPos);
+      } else if (part == 7) {
+        _objectFactory.addAsteroids(level, yPos);
+      } else if (part == 8) {
+        _objectFactory.addBossFight(level, yPos);
+      }
     }
   }
 
   void fire() {
     int laserLevel = _objectFactory.playerState.laserLevel;
+    WeaponType currentWeapon = _playerState.currentWeapon;
 
-    Laser shot0 = Laser(_objectFactory, laserLevel, -90.0);
-    shot0.position = _level.ship.position + const Offset(17.0, -10.0);
-    _level.addChild(shot0);
+    if (currentWeapon == WeaponType.spread) { // Spread Gun
+      for (double angle in [-110.0, -90.0, -70.0]) {
+        Laser shot = Laser(_objectFactory, laserLevel, angle);
+        shot.position = _level.ship.position + const Offset(0, -10.0);
+        _level.addChild(shot);
+      }
+    } else if (currentWeapon == WeaponType.piercing) { // Piercing Beam
+      Laser shot = PiercingLaser(_objectFactory, laserLevel, -90.0);
+      shot.position = _level.ship.position + const Offset(0, -10.0);
+      _level.addChild(shot);
+    } else if (currentWeapon == WeaponType.homing) { // Homing Missiles
+      Laser shot0 = HomingLaser(_objectFactory, laserLevel, -100.0);
+      shot0.position = _level.ship.position + const Offset(17.0, -10.0);
+      _level.addChild(shot0);
 
-    Laser shot1 = Laser(_objectFactory, laserLevel, -90.0);
-    shot1.position = _level.ship.position + const Offset(-17.0, -10.0);
-    _level.addChild(shot1);
+      Laser shot1 = HomingLaser(_objectFactory, laserLevel, -80.0);
+      shot1.position = _level.ship.position + const Offset(-17.0, -10.0);
+      _level.addChild(shot1);
+    } else { // Basic Laser
+      Laser shot0 = Laser(_objectFactory, laserLevel, -90.0);
+      shot0.position = _level.ship.position + const Offset(17.0, -10.0);
+      _level.addChild(shot0);
+
+      Laser shot1 = Laser(_objectFactory, laserLevel, -90.0);
+      shot1.position = _level.ship.position + const Offset(-17.0, -10.0);
+      _level.addChild(shot1);
+    }
 
     if (_playerState.sideLaserActive) {
       Laser shot2 = Laser(_objectFactory, laserLevel, -45.0);
@@ -253,6 +372,21 @@ class GameDemoNode extends NodeWithSize {
   }
 
   void killShip() {
+    if (_playerState.hp > 1) {
+      _playerState.hp--;
+      _playerState.hpInvincibilityFrames = 120; // 2 seconds of invincibility
+      _sounds.playEffect("explosion_player");
+      
+      // Small explosion effect
+      ExplosionBig explo = ExplosionBig(_spritesGame);
+      explo.scale = 0.5;
+      explo.position = _level.ship.position;
+      _level.addChild(explo);
+      return;
+    }
+    
+    _playerState.hp--;
+    
     // Hide ship
     _level.ship.visible = false;
 

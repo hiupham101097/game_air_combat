@@ -1,8 +1,10 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
 import 'package:mini__game2/controller/setting/sound_assets.dart';
 import 'package:mini__game2/view/game/game_demo.dart';
+import 'package:mini__game2/view/main/splash_screen.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 ///khai báo 1 lân đề dùng chung
@@ -30,6 +32,9 @@ enum PowerUpType {
   speedLaser,
   sideLaser,
   speedBoost,
+  heal,
+  magnet,
+  nuke,
 }
 
 var gameSizeHeight = 320.0;
@@ -47,6 +52,8 @@ main() async {
   // Chúng ta cần gọi EnsureInitialized nếu chúng ta đang tải hình ảnh trước runApp
   // được gọi là.
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await Firebase.initializeApp();
 
   // Ẩn tất cả các thanh menu
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
@@ -66,9 +73,17 @@ main() async {
     'assets/ui_bg_top.png',
     'assets/ui_bg_bottom.png',
     'assets/ui_popup.png',
+    'assets/ship_2.png',
+    'assets/ship_phoenix.png',
+    'assets/ship_stealth.png',
+    'assets/ship_guardian.png',
+    'assets/boss_nova.png',
+    'assets/boss_phantom.png',
+    'assets/boss_titan.png',
+    'assets/event_bg.png',
   ]);
   // Tải âm anh
-  settingSound();
+  await settingSound();
 
   // Tải trang sprite
   String json = await rootBundle.loadString('assets/sprites.json');
@@ -84,7 +99,7 @@ main() async {
   );
 
   // chạy ứng  dụng và gọi tới view đâu tiên là game demo
-  runApp(const GameDemo());
+  runApp(const SplashWrapper());
 }
 
 settingSound() async {
@@ -110,4 +125,32 @@ settingSound() async {
   ]);
 
   return await Future.wait(loads);
+}
+
+/// SplashWrapper shows the animated splash screen,
+/// then transitions to the main game.
+class SplashWrapper extends StatefulWidget {
+  const SplashWrapper({Key? key}) : super(key: key);
+
+  @override
+  State<SplashWrapper> createState() => _SplashWrapperState();
+}
+
+class _SplashWrapperState extends State<SplashWrapper> {
+  bool _showGame = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showGame) {
+      return const GameDemo();
+    }
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: SplashScreen(
+        onComplete: () {
+          setState(() => _showGame = true);
+        },
+      ),
+    );
+  }
 }

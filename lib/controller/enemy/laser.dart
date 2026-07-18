@@ -9,7 +9,7 @@ class EnemyLaser extends Obstacle {
   EnemyLaser(GameObjectFactory f, double rotation, double speed, Color color)
       : super(f) {
     _sprite = Sprite(texture: f.sheet["explosion_particle.png"]!);
-    _sprite.scale = 10.5;
+    _sprite.scale = 0.5;
     _sprite.rotation = rotation + 190;
     _sprite.colorOverlay = color;
     addChild(_sprite);
@@ -17,7 +17,8 @@ class EnemyLaser extends Obstacle {
     canDamageShip = true;
     canBeDamaged = false;
 
-    double rad = radians(rotation);
+    // Convert SpriteWidget rotation (0 = UP) to Math angle (0 = RIGHT)
+    double rad = radians(rotation - 90.0);
     _movement = Offset(math.cos(rad) * speed, math.sin(rad) * speed);
   }
 

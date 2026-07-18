@@ -68,6 +68,7 @@ abstract class GameObject extends Node {
     if (damage >= maxDamage) {
       destroy();
       f.playerState.score += (maxDamage * 10).ceil();
+      f.playerState.enemyKilled();
     } else {
       f.sounds.playEffect("hit");
     }

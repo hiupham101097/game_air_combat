@@ -20,14 +20,14 @@ class CenterArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _buildCenterArea();
+    return _buildCenterArea(context);
   }
 
-  Widget _buildCenterArea() {
-    return _buildUpgradePanel();
+  Widget _buildCenterArea(BuildContext context) {
+    return _buildUpgradePanel(context);
   }
 
-  Widget _buildUpgradePanel() {
+  Widget _buildUpgradePanel(BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       key: const Key("upgradePanel"),
@@ -40,8 +40,44 @@ class CenterArea extends StatelessWidget {
           _buildPowerUpButton(PowerUpType.sideLaser),
           _buildPowerUpButton(PowerUpType.speedBoost),
           _buildPowerUpButton(PowerUpType.speedLaser),
-        ])
+        ]),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildMenuButton(context, 'INVENTORY', '/inventory', Colors.blue),
+            _buildMenuButton(context, 'QUESTS', '/quests', Colors.orange),
+            _buildMenuButton(context, 'RANK', '/leaderboard', Colors.purple),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildMenuButton(context, 'ACCOUNT', '/account', Colors.green),
+          ],
+        )
       ],
+    );
+  }
+
+  Widget _buildMenuButton(BuildContext context, String title, String route, Color color) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      onPressed: () {
+        Navigator.pushNamed(context, route);
+      },
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontFamily: 'Orbitron',
+          fontSize: 10,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 

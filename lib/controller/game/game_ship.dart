@@ -2,12 +2,22 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
+import 'package:mini__game2/main.dart';
+import 'package:mini__game2/model/ship_model.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 class Ship extends GameObject {
   Ship(GameObjectFactory f) : super(f) {
-    // Add main ship sprite
-    _sprite = Sprite(texture: f.sheet["ship.png"]!);
+    // Load ship based on equipped ship selection
+    final shipConfig = ShipConfig.ships[gameState.equippedShip.clamp(0, ShipConfig.ships.length - 1)];
+
+    if (shipConfig.customAsset != null) {
+      // Load custom ship image from imageMap
+      _sprite = Sprite.fromImage(imageMap[shipConfig.customAsset!]!);
+    } else {
+      // Load default from sprite sheet
+      _sprite = Sprite(texture: f.sheet["ship.png"]!);
+    }
     _sprite.scale = 0.3;
     _sprite.rotation = -90.0;
     addChild(_sprite);
@@ -17,9 +27,13 @@ class Ship extends GameObject {
     _spriteShield.blendMode = ui.BlendMode.plus;
     addChild(_spriteShield);
 
-    radius = 20.0;
+    radius = 20.0 * shipConfig.sizeMultiplier;
     canBeDamaged = false;
     canDamageShip = false;
+
+    // Apply ship multipliers
+    _speedMultiplier = shipConfig.speedMultiplier;
+    _fireRateMultiplier = shipConfig.fireRateMultiplier;
 
     // Set start position
     position = const Offset(0.0, 50.0);
@@ -27,11 +41,16 @@ class Ship extends GameObject {
 
   late Sprite _sprite;
   late Sprite _spriteShield;
+  double _speedMultiplier = 1.0;
+  double _fireRateMultiplier = 1.0;
+
+  double get fireRateMultiplier => _fireRateMultiplier;
 
   void applyThrust(Offset joystickValue, double scroll) {
     Offset oldPos = position;
     Offset target = Offset(
-        joystickValue.dx * 160.0, joystickValue.dy * 220.0 - 250.0 - scroll);
+        joystickValue.dx * 160.0 * _speedMultiplier,
+        joystickValue.dy * 220.0 - 250.0 - scroll);
     double filterFactor = 0.2;
 
     position = Offset(GameMath.filter(oldPos.dx, target.dx, filterFactor),

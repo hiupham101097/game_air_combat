@@ -1,52 +1,157 @@
-
-
 import 'dart:convert';
 
+import 'package:mini__game2/controller/cloud_sync_service.dart';
 import 'package:mini__game2/main.dart';
+import 'package:mini__game2/model/equipment.dart';
+import 'package:mini__game2/model/quest.dart';
+import 'package:mini__game2/model/ship_model.dart';
+import 'package:mini__game2/model/weapon.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 //cấu hình trạng thái cho game
 class PersistantGameState {
   Future load() async {
     final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString('game_prefs'); //Lấy data từ bộ nhớ thư mục máy
-    if (json == null) return;
+    final jsonStr =
+        prefs.getString('game_prefs'); //Lấy data từ bộ nhớ thư mục máy
+    if (jsonStr != null) {
+      JsonDecoder decoder = const JsonDecoder();
+      Map data = decoder.convert(jsonStr); //convert json
+      _fromJson(data);
+    }
 
-    JsonDecoder decoder = const JsonDecoder();
-    Map data = decoder.convert(json); //convert json
-
-    coins = data['coins']; //Điểm
-    _powerupLevels = data['powerUpLevels'].cast<int>(); //cấp độ sức mạnh
-    _currentStartingLevel = data['currentStartingLevel']; //cấp độ hiện tại
-    maxStartingLevel = data['maxStartingLevel']; //mức khởi đầu tối đa
-    laserLevel = data['laserLevel']; // cấp độ vũ khí
-    _lastScore = data['lastScore']; // điểm cuối cùng được lưu
-    weeklyBestScore = data['bestScore']; // điểm cao nhất trong tuần
+    _checkDailyReset();
   }
 
-  Future store() async {
-    final prefs = await SharedPreferences.getInstance();
+  void _fromJson(Map data) {
+    coins = data['coins'] ?? 0;
+    energyStones = data['energyStones'] ?? 0;
+    energyCores = data['energyCores'] ?? 0;
+    _powerupLevels =
+        data['powerUpLevels']?.cast<int>() ?? <int>[0, 0, 0, 0, 0, 0, 0];
+    // Pad old saves that only had 4 entries to the new length of 7
+    while (_powerupLevels.length < 7) {
+      _powerupLevels.add(0);
+    }
+    _currentStartingLevel = data['currentStartingLevel'] ?? 0;
+    maxStartingLevel = data['maxStartingLevel'] ?? 0;
+    laserLevel = data['laserLevel'] ?? 0;
+    _lastScore = data['lastScore'] ?? 0;
+    weeklyBestScore = data['bestScore'] ?? 0;
 
-    Map data = {
+    unlockedWeapons = data['unlockedWeapons']?.cast<int>() ?? [0];
+    equippedWeapon = data['equippedWeapon'] ?? 0;
+    lastLoginDate = data['lastLoginDate'] ?? "";
+    unlockedShips = data['unlockedShips']?.cast<int>() ?? [0];
+    equippedShip = data['equippedShip'] ?? 0;
+
+    if (data['dailyQuests'] != null) {
+      dailyQuests = (data['dailyQuests'] as List)
+          .map((q) => DailyQuest.fromJson(q))
+          .toList();
+    } else {
+      _generateDailyQuests();
+    }
+
+    ownedEquipment = data['ownedEquipment']?.cast<String>() ?? <String>[];
+    if (data['equippedLoadout'] != null) {
+      equippedLoadout = Map<String, String>.from(data['equippedLoadout']);
+    } else {
+      equippedLoadout = <String, String>{};
+    }
+    if (data['equipmentLevels'] != null) {
+      equipmentLevels = Map<String, int>.from(data['equipmentLevels']);
+    } else {
+      equipmentLevels = <String, int>{};
+    }
+
+    // [TEST MODE] Ghi đè dữ liệu lưu cũ để đảm bảo test mode hoạt động
+    coins = 999999;
+    energyStones = 5000;
+    energyCores = 100;
+    unlockedWeapons = List.generate(WeaponType.values.length, (i) => i);
+    unlockedShips = List.generate(ShipConfig.ships.length, (i) => i);
+    ownedEquipment = EquipmentItem.database.map((e) => e.id).toList();
+    for (var id in ownedEquipment) {
+      if (!equipmentLevels.containsKey(id)) {
+        equipmentLevels[id] = 1; // Default test mode level
+      }
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
       'coins': coins,
+      'energyStones': energyStones,
+      'energyCores': energyCores,
       'powerUpLevels': _powerupLevels,
       'currentStartingLevel': _currentStartingLevel,
       'maxStartingLevel': maxStartingLevel,
       'laserLevel': laserLevel,
       'lastScore': _lastScore,
-      'bestScore': weeklyBestScore
+      'bestScore': weeklyBestScore,
+      'unlockedWeapons': unlockedWeapons,
+      'equippedWeapon': equippedWeapon,
+      'lastLoginDate': lastLoginDate,
+      'unlockedShips': unlockedShips,
+      'equippedShip': equippedShip,
+      'dailyQuests': dailyQuests.map((q) => q.toJson()).toList(),
+      'ownedEquipment': ownedEquipment,
+      'equippedLoadout': equippedLoadout,
+      'equipmentLevels': equipmentLevels,
     };
-    JsonEncoder encoder = const JsonEncoder();
-    String json = encoder.convert(data);
-    prefs.setString('game_prefs', json);
   }
 
-  int coins = 0;
+  Future store() async {
+    final prefs = await SharedPreferences.getInstance();
 
-  List<int> _powerupLevels = <int>[0, 0, 0, 0];
+    Map<String, dynamic> data = toJson();
+    JsonEncoder encoder = const JsonEncoder();
+    String jsonStr = encoder.convert(data);
+    prefs.setString('game_prefs', jsonStr);
+
+    // Sync to cloud in the background
+    CloudSyncService().pushData(data);
+  }
+
+  Future syncFromCloud() async {
+    final cloudData = await CloudSyncService().pullData();
+    if (cloudData != null) {
+      _fromJson(cloudData);
+      // Save downloaded data to local storage
+      await store();
+    }
+  }
+
+  int coins = 999999; // [TEST MODE] bật lên để test
+
+  List<int> unlockedWeapons = List.generate(
+      WeaponType.values.length, (i) => i); // [TEST] Mở khóa tất cả vũ khí
+  int equippedWeapon = 0;
+
+  List<int> unlockedShips = List.generate(
+      ShipConfig.ships.length, (i) => i); // [TEST] Mở khóa tất cả chiến cơ
+  int equippedShip = 0;
+
+  String lastLoginDate = "";
+
+  List<String> ownedEquipment = EquipmentItem.database
+      .map((e) => e.id)
+      .toList(); // [TEST] Sở hữu toàn bộ trang bị
+  Map<String, String> equippedLoadout = <String, String>{};
+  Map<String, int> equipmentLevels = <String, int>{}; // ID -> Level
+
+  int energyStones = 0;
+  int energyCores = 0;
+
+  List<DailyQuest> dailyQuests = [];
+
+  // 7 entries matching PowerUpType.values (shield, speedLaser, sideLaser, speedBoost, heal, magnet, nuke)
+  List<int> _powerupLevels = <int>[0, 0, 0, 0, 0, 0, 0];
 
   int powerupLevel(PowerUpType type) {
-    return _powerupLevels[type.index];
+    int idx = type.index.clamp(0, _powerupLevels.length - 1);
+    return _powerupLevels[idx];
   }
 
   int maxPowerUpLevel = 8;
@@ -80,7 +185,7 @@ class PersistantGameState {
 
   int powerUpUpgradePrice(PowerUpType type) {
     //mức gia tắng sức mạnh
-    int level = powerupLevel(type) + 1; 
+    int level = powerupLevel(type) + 1;
     return level * 50 + 50;
   }
 
@@ -88,7 +193,8 @@ class PersistantGameState {
     //Khung sức mạnh được tăng
     int level = powerupLevel(type);
 
-    if (type == PowerUpType.speedBoost) { //tốc độ
+    if (type == PowerUpType.speedBoost) {
+      //tốc độ
       return 150 + 25 * level;
     } else {
       return 300 + 50 * level;
@@ -96,12 +202,13 @@ class PersistantGameState {
   }
 
   bool upgradePowerUp(PowerUpType type) {
-    // Tăng thêm sức mạnh 
+    // Chỉ cho upgrade 4 loại gốc (không upgrade heal/magnet/nuke vì drop trong game)
+    if (type.index >= 4) return false;
     int price = powerUpUpgradePrice(type);
-
-    if (coins >= price && _powerupLevels[type.index] < maxPowerUpLevel) {
+    int idx = type.index.clamp(0, _powerupLevels.length - 1);
+    if (coins >= price && _powerupLevels[idx] < maxPowerUpLevel) {
       coins -= price;
-      _powerupLevels[type.index] += 1;
+      _powerupLevels[idx] += 1;
       store();
       return true;
     } else {
@@ -131,5 +238,51 @@ class PersistantGameState {
       _currentStartingLevel = level;
     }
     store();
+  }
+
+  void _checkDailyReset() {
+    String today = DateTime.now().toIso8601String().split('T')[0];
+    if (lastLoginDate != today) {
+      lastLoginDate = today;
+      _generateDailyQuests();
+      store();
+    }
+  }
+
+  void _generateDailyQuests() {
+    dailyQuests = [
+      DailyQuest(
+          id: "q1",
+          type: QuestType.playGames,
+          description: "Play 3 Games",
+          target: 3,
+          coinReward: 500),
+      DailyQuest(
+          id: "q2",
+          type: QuestType.killEnemies,
+          description: "Destroy 100 Enemies",
+          target: 100,
+          coinReward: 1000),
+      DailyQuest(
+          id: "q3",
+          type: QuestType.collectCoins,
+          description: "Collect 500 Coins",
+          target: 500,
+          coinReward: 1500),
+    ];
+  }
+
+  void updateQuestProgress(QuestType type, int amount) {
+    bool updated = false;
+    for (var quest in dailyQuests) {
+      if (quest.type == type &&
+          !quest.isClaimed &&
+          quest.progress < quest.target) {
+        quest.progress += amount;
+        if (quest.progress > quest.target) quest.progress = quest.target;
+        updated = true;
+      }
+    }
+    if (updated) store();
   }
 }

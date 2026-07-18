@@ -7,6 +7,9 @@ import 'package:mini__game2/model/custom_actions.dart';
 import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/flash.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
+import 'package:mini__game2/controller/game/game_objects.dart';
+import 'package:mini__game2/model/weapon.dart';
+import 'package:mini__game2/controller/game/weapon_pickup.dart';
 import 'package:mini__game2/controller/power/power_bar.dart';
 import 'package:spritewidget/spritewidget.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -39,19 +42,32 @@ class EnemyBoss extends Obstacle {
   late PowerBar _powerBar;
 
   int _countDown = randomInt(120) + 240;
+  int _currentPhase = 1;
 
   @override
   void update(double dt) {
     _countDown -= 1;
     if (_countDown <= 0) {
-      // Shoot at player
       f.sounds.playEffect("laser");
 
-      fire(10.0);
-      fire(0.0);
-      fire(-10.0);
-
-      _countDown = 60 + randomInt(120);
+      if (_currentPhase == 1) {
+        fire(10.0);
+        fire(0.0);
+        fire(-10.0);
+        _countDown = 60 + randomInt(60);
+      } else if (_currentPhase == 2) {
+        fire(20.0);
+        fire(10.0);
+        fire(0.0);
+        fire(-10.0);
+        fire(-20.0);
+        _countDown = 40 + randomInt(40);
+      } else if (_currentPhase == 3) {
+        for (double a = 0; a < 360; a += 45) {
+          fire(a);
+        }
+        _countDown = 30 + randomInt(30);
+      }
     }
   }
 
@@ -84,6 +100,10 @@ class EnemyBoss extends Obstacle {
     screen.addChild(Flash(screen.size, 1.0));
     super.destroy();
 
+    // Add a weapon pickup guaranteed from boss
+    WeaponPickup weapon = WeaponPickup(f, WeaponType.values[randomInt(WeaponType.values.length)]);
+    f.addGameObject(weapon, position);
+
     // Add coins
     for (int i = 0; i < 20; i++) {
       Coin coin = Coin(f);
@@ -114,6 +134,14 @@ class EnemyBoss extends Obstacle {
       ),
     );
 
-    _powerBar.power = (1.0 - (damage / maxDamage)).clamp(0.0, 1.0);
+    double hpRatio = 1.0 - (damage / maxDamage);
+    _powerBar.power = hpRatio.clamp(0.0, 1.0);
+
+    if (hpRatio <= 0.33) {
+      _currentPhase = 3;
+      _sprite.colorOverlay = const Color(0x66FF0000); // Boss turns reddish
+    } else if (hpRatio <= 0.66) {
+      _currentPhase = 2;
+    }
   }
 }

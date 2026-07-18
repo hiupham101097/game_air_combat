@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
 import 'package:mini__game2/main.dart';
@@ -9,7 +10,18 @@ class PowerUp extends Collectable {
     _sprite.scale = 0.3;
     addChild(_sprite);
 
-    Sprite powerUpIcon = Sprite(texture: f.sheet["powerup_${type.index}.png"]!);
+    // Check if it's a standard power up or a new buff
+    int iconIndex = type.index < 4 ? type.index : 0;
+    Sprite powerUpIcon = Sprite(texture: f.sheet["powerup_$iconIndex.png"]!);
+    
+    if (type == PowerUpType.heal) {
+      powerUpIcon.colorOverlay = const Color.fromARGB(200, 0, 255, 0); // Green
+    } else if (type == PowerUpType.magnet) {
+      powerUpIcon.colorOverlay = const Color.fromARGB(200, 50, 50, 255); // Blue
+    } else if (type == PowerUpType.nuke) {
+      powerUpIcon.colorOverlay = const Color.fromARGB(200, 255, 0, 0); // Red
+    }
+    
     powerUpIcon.scale = 0.3;
     addChild(powerUpIcon);
 

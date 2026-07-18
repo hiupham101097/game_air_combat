@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mini__game2/main.dart';
+import 'package:mini__game2/model/quest.dart';
 import 'package:mini__game2/view/game/game_score.dart';
 import 'package:mini__game2/view/main/main_view.dart';
+import 'package:mini__game2/view/main/inventory_screen.dart';
+import 'package:mini__game2/view/main/quests_screen.dart';
+import 'package:mini__game2/view/main/leaderboard_screen.dart';
+import 'package:mini__game2/view/main/login_screen.dart';
 import 'package:mini__game2/view/widgets.dart';
 
 class GameDemo extends StatefulWidget {
@@ -27,6 +32,16 @@ class GameDemoState extends State<GameDemo> {
               switch (settings.name) {
                 case '/game':
                   return _buildGameSceneRoute();
+                case '/event':
+                  return _buildEventSceneRoute();
+                case '/inventory':
+                  return MaterialPageRoute(builder: (context) => const InventoryScreen());
+                case '/quests':
+                  return MaterialPageRoute(builder: (context) => const QuestsScreen());
+                case '/leaderboard':
+                  return MaterialPageRoute(builder: (context) => const LeaderboardScreen());
+                case '/account':
+                  return MaterialPageRoute(builder: (context) => const LoginScreen());
                 default:
                   return _buildMainSceneRoute();
               }
@@ -45,6 +60,26 @@ class GameDemoState extends State<GameDemo> {
               gameState.lastScore = lastScore;
               gameState.coins += coins;
               gameState.reachedLevel(levelReached);
+              gameState.updateQuestProgress(QuestType.playGames, 1);
+              gameState.updateQuestProgress(QuestType.collectCoins, coins);
+            });
+          },
+          gameState: gameState);
+    });
+  }
+
+  PageRoute _buildEventSceneRoute() {
+    return MaterialPageRoute(builder: (BuildContext context) {
+      return GameScene(
+          isEventMode: true,
+          onGameOver: (int lastScore, int coins, int levelReached) {
+            setState(() {
+              // Bonus coin reward for completing Event Mode
+              gameState.lastScore = lastScore;
+              gameState.coins += (coins * 1.5).toInt(); // 50% bonus
+              gameState.reachedLevel(levelReached);
+              gameState.updateQuestProgress(QuestType.playGames, 1);
+              gameState.updateQuestProgress(QuestType.collectCoins, coins);
             });
           },
           gameState: gameState);

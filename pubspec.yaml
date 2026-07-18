@@ -19,7 +19,10 @@ dependencies:
   shared_preferences: ^2.2.2
   just_audio: ^0.9.37
   vector_math: ^2.1.4
-
+  just_audio_windows: ^0.2.3
+  firebase_core: ^4.12.1
+  firebase_auth: ^6.5.6
+  firebase_database: ^12.4.6
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -42,6 +45,19 @@ flutter:
     - assets/ui_bg_top.png
     - assets/ui_bg_bottom.png
     - assets/ui_popup.png
+    - assets/ship_2.png
+    - assets/ship_phoenix.png
+    - assets/ship_stealth.png
+    - assets/ship_guardian.png
+    - assets/boss_nova.png
+    - assets/boss_phantom.png
+    - assets/boss_titan.png
+    - assets/event_bg.png
+    - assets/drone.png
+    - assets/equip_core.png
+    - assets/equip_armor.png
+    - assets/equip_engine.png
+    - assets/equip_drone.png
     - assets/music_game.mp3
     - assets/music_boss.mp3
     - assets/music_intro.mp3

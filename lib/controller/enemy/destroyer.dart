@@ -5,6 +5,10 @@ import 'package:mini__game2/model/custom_actions.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
+import 'package:mini__game2/controller/power/power_up.dart';
+import 'package:mini__game2/controller/power/power_upda_type.dart';
+import 'package:mini__game2/model/weapon.dart';
+import 'package:mini__game2/controller/game/weapon_pickup.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 class EnemyDestroyer extends Obstacle {
@@ -40,7 +44,15 @@ class EnemyDestroyer extends Obstacle {
   }
 
   @override
-  Collectable createPowerUp() {
+  Collectable? createPowerUp() {
+    double rand = randomDouble();
+    if (rand < 0.05) {
+      // 5% chance to drop a weapon
+      return WeaponPickup(f, WeaponType.values[randomInt(WeaponType.values.length)]);
+    } else if (rand < 0.15) {
+      // 10% chance to drop a powerup
+      return PowerUp(f, nextPowerUpType());
+    }
     return Coin(f);
   }
 

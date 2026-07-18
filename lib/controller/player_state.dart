@@ -1,10 +1,13 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:mini__game2/controller/enemy/boss.dart';
+import 'package:mini__game2/controller/enemy/obstacle.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
 import 'package:mini__game2/main.dart';
+import 'package:mini__game2/model/quest.dart';
+import 'package:mini__game2/model/weapon.dart';
+import 'package:mini__game2/model/equipment.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 
@@ -33,7 +36,49 @@ class PlayerState extends Node {
     _coinDisplay.position = const Offset(252.0, 49.0);
     _spriteBackgroundCoins.addChild(_coinDisplay);
 
+    // HP display
+    _hpDisplay = HpDisplay(_sheetGame);
+    _hpDisplay.position = const Offset(10.0, 15.0); // Top left
+    addChild(_hpDisplay);
+
     laserLevel = _gameState.laserLevel;
+
+    // Fix: WeaponConfig.weapons keys are WeaponType, not int.
+    // Use WeaponType.values[index] to get the correct enum then look up.
+    int weaponIdx = _gameState.equippedWeapon.clamp(0, WeaponType.values.length - 1);
+    currentWeapon = WeaponType.values[weaponIdx];
+
+    _calculateEquipmentStats();
+  }
+
+  int droneEquipmentLevel = 1;
+
+  void _calculateEquipmentStats() {
+    int bonusHp = 0;
+    double bonusDamage = 0.0;
+    double bonusSpeed = 0.0;
+    
+    _gameState.equippedLoadout.forEach((slot, id) {
+      EquipmentItem? item = EquipmentItem.getById(id);
+      if (item != null) {
+        int level = _gameState.equipmentLevels[id] ?? 1;
+        bonusHp += item.getHpBonus(level);
+        bonusDamage += item.getDamageMultiplier(level);
+        bonusSpeed += item.getSpeedMultiplier(level);
+        if (item.slot == EquipmentSlot.drone) {
+          droneEquipment = item;
+          droneEquipmentLevel = level;
+        }
+      }
+    });
+
+    maxHp = 3 + bonusHp;
+    hp = maxHp; // Start with full HP
+    damageMultiplier = 1.0 + bonusDamage;
+    speedMultiplier = 1.0 + bonusSpeed;
+    
+    // Adjust scroll speed with engine speed multiplier
+    scrollSpeed = normalScrollSpeed * speedMultiplier;
   }
 
   final SpriteSheet _sheetUI;
@@ -41,6 +86,12 @@ class PlayerState extends Node {
   final PersistantGameState _gameState;
 
   int laserLevel = 0;
+  late WeaponType currentWeapon;
+
+  void changeWeapon(WeaponType type) {
+    currentWeapon = type;
+    // Maybe show a flash or effect later
+  }
 
   static const double normalScrollSpeed = 2.0;
 
@@ -48,18 +99,23 @@ class PlayerState extends Node {
 
   double _scrollSpeedTarget = normalScrollSpeed;
 
-  EnemyBoss? boss;
+  Obstacle? boss;
 
   late Sprite _spriteBackgroundScore;
   late ScoreDisplay _scoreDisplay;
   late Sprite _spriteBackgroundCoins;
   late ScoreDisplay _coinDisplay;
+  late HpDisplay _hpDisplay;
 
   int get score => _scoreDisplay.score;
 
   set score(int score) {
     _scoreDisplay.score = score;
     flashBackgroundSprite(_spriteBackgroundScore);
+  }
+
+  void enemyKilled() {
+    _gameState.updateQuestProgress(QuestType.killEnemies, 1);
   }
 
   int get coins => _coinDisplay.score;
@@ -123,14 +179,34 @@ class PlayerState extends Node {
     } else if (type == PowerUpType.speedBoost) {
       _speedBoostFrames += _gameState.powerUpFrames(type);
       _shieldFrames += _gameState.powerUpFrames(type) + 60;
+    } else if (type == PowerUpType.heal) {
+      hp = (hp + 1).clamp(0, maxHp);
+    } else if (type == PowerUpType.magnet) {
+      _magnetFrames += 600; // 10 seconds at 60fps
+    } else if (type == PowerUpType.nuke) {
+      activateNuke = true;
     }
   }
 
+  int hp = 3;
+  int maxHp = 3;
+
+  double damageMultiplier = 1.0;
+  double speedMultiplier = 1.0;
+  EquipmentItem? droneEquipment;
+
+  bool activateNuke = false;
+
+  int _magnetFrames = 0;
+  bool get magnetActive => _magnetFrames > 0;
+
   int _shieldFrames = 0;
-  bool get shieldActive => _shieldFrames > 0 || _speedBoostFrames > 0;
+  bool get shieldActive => _shieldFrames > 0 || _speedBoostFrames > 0 || hpInvincibilityFrames > 0;
   bool get shieldDeactivating =>
       math.max(_shieldFrames, _speedBoostFrames) > 0 &&
       math.max(_shieldFrames, _speedBoostFrames) < 60;
+
+  int hpInvincibilityFrames = 0; // Temp invincibility after taking a hit
 
   int _sideLaserFrames = 0;
   bool get sideLaserActive => _sideLaserFrames > 0;
@@ -166,6 +242,14 @@ class PlayerState extends Node {
     if (_speedBoostFrames > 0) {
       _speedBoostFrames--;
     }
+    if (_magnetFrames > 0) {
+      _magnetFrames--;
+    }
+    if (hpInvincibilityFrames > 0) {
+      hpInvincibilityFrames--;
+    }
+    
+    _hpDisplay.hp = hp; // Sync HP display
 
     // Update speed
     if (boss != null) {
@@ -218,6 +302,42 @@ class ScoreDisplay extends Node {
         xPos -= 37.0;
       }
       _dirtyScore = false;
+    }
+  }
+}
+
+class HpDisplay extends Node {
+  HpDisplay(this._sheetUI); // receives _sheetGame which has powerup_0.png
+
+  int _hp = 3;
+
+  int get hp => _hp;
+
+  set hp(int hp) {
+    if (_hp != hp) {
+      _hp = hp;
+      _dirtyHp = true;
+    }
+  }
+
+  final SpriteSheet _sheetUI;
+  bool _dirtyHp = true;
+
+  @override
+  void update(double dt) {
+    if (_dirtyHp) {
+      removeAllChildren();
+      double xPos = 0.0;
+      for (int i = 0; i < _hp; i++) {
+        // We'll use a powerup shield icon as a makeshift heart/health icon since we don't have hearts
+        Sprite hpSprite = Sprite(texture: _sheetUI["powerup_0.png"]!);
+        hpSprite.colorOverlay = const Color.fromARGB(255, 255, 50, 50); // Red tint
+        hpSprite.scale = 0.3;
+        hpSprite.position = Offset(xPos, 0.0);
+        addChild(hpSprite);
+        xPos += 20.0;
+      }
+      _dirtyHp = false;
     }
   }
 }

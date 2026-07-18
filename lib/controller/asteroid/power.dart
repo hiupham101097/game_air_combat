@@ -23,9 +23,17 @@ class AsteroidPowerUp extends AsteroidBig {
     powerUpBg.scale = 0.3;
     addChild(powerUpBg);
 
+    int iconIndex = _powerUpType.index < 4 ? _powerUpType.index : 0;
     Sprite powerUpIcon = Sprite(
-      texture: f.sheet["powerup_${_powerUpType.index}.png"]!,
+      texture: f.sheet["powerup_$iconIndex.png"]!,
     );
+    if (_powerUpType == PowerUpType.heal) {
+      powerUpIcon.colorOverlay = const Color.fromARGB(200, 0, 255, 0);
+    } else if (_powerUpType == PowerUpType.magnet) {
+      powerUpIcon.colorOverlay = const Color.fromARGB(200, 50, 50, 255);
+    } else if (_powerUpType == PowerUpType.nuke) {
+      powerUpIcon.colorOverlay = const Color.fromARGB(200, 255, 0, 0);
+    }
     powerUpIcon.scale = 0.3;
     addChild(powerUpIcon);
 

@@ -8,8 +8,12 @@ import 'package:mini__game2/controller/asteroid/big.dart';
 import 'package:mini__game2/controller/asteroid/power.dart';
 import 'package:mini__game2/controller/asteroid/small.dart';
 import 'package:mini__game2/controller/enemy/boss.dart';
+import 'package:mini__game2/controller/enemy/boss_laser.dart';
+import 'package:mini__game2/controller/enemy/boss_carrier.dart';
+import 'package:mini__game2/controller/enemy/boss_extended.dart';
 import 'package:mini__game2/controller/enemy/destroyer.dart';
 import 'package:mini__game2/controller/enemy/scout.dart';
+import 'package:mini__game2/controller/enemy/obstacle.dart';
 // import 'package:mini__game2/controller/game/game_demo_node.dart';
 import 'package:mini__game2/controller/game/game_level.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
@@ -125,12 +129,22 @@ class GameObjectFactory {
   }
 
   void addBossFight(int level, double yPos) {
-    // Add boss
-    EnemyBoss boss = EnemyBoss(this, level);
+    Obstacle boss;
+    int bossType = level % 8; // Rotate through 8 boss types
+    
+    switch (bossType) {
+      case 0: boss = EnemyBoss(this, level); break;
+      case 1: boss = BossLaser(this, level); break;
+      case 2: boss = BossCarrier(this, level); break;
+      case 3: boss = BossNova(this, level); break;
+      case 4: boss = BossPhantom(this, level); break;
+      case 5: boss = BossTitan(this, level); break;
+      case 6: boss = BossVenom(this, level); break;
+      default: boss = BossColossus(this, level);
+    }
+    
     Offset pos = Offset(0.0, yPos + chunkSpacing / 2.0);
-
     addGameObject(boss, pos);
-
     playerState.boss = boss;
 
     int destroyerLevel = (level - 1 ~/ 3).clamp(0, 2);

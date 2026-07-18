@@ -80,6 +80,10 @@ class MainSceneState extends State<MainScene> {
                             Navigator.pushNamed(context, '/game');
                             sounds.playMusic('music_game');
                           },
+                          onPlayEvent: () {
+                            Navigator.pushNamed(context, '/event');
+                            sounds.playMusic('music_game');
+                          },
                           onStartLevelUp: widget.onStartLevelUp,
                           onStartLevelDown: widget.onStartLevelDown,
                           gameState: widget.gameState,

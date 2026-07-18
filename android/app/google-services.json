@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "876044154765",
+    "project_id": "game-fly-air",
+    "storage_bucket": "game-fly-air.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:876044154765:android:435741407883fceeea6fc4",
+        "android_client_info": {
+          "package_name": "com.game.flyair"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCMeFMJ_TCA_3WnfeBdynOE0W_7whPXnf0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
