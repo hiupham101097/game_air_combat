@@ -32,9 +32,15 @@ class CenterArea extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       key: const Key("upgradePanel"),
       children: <Widget>[
-        const Text("Nâng cấp laze", style: TextStyle(fontSize: 14),),
+        const Text(
+          "Nâng cấp laze",
+          style: TextStyle(fontSize: 14),
+        ),
         _buildLaserUpgradeButton(),
-        const Text("Nâng cấp sức mạnh", style: TextStyle(fontSize: 14),),
+        const Text(
+          "Nâng cấp sức mạnh",
+          style: TextStyle(fontSize: 14),
+        ),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: <Widget>[
           _buildPowerUpButton(PowerUpType.shield),
           _buildPowerUpButton(PowerUpType.sideLaser),
@@ -61,7 +67,8 @@ class CenterArea extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuButton(BuildContext context, String title, String route, Color color) {
+  Widget _buildMenuButton(
+      BuildContext context, String title, String route, Color color) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
@@ -99,7 +106,7 @@ class CenterArea extends StatelessWidget {
           ),
           Padding(
               padding: const EdgeInsets.all(3.0),
-              child: Text("Lvl ${gameState.powerupLevel(type) + 10}",
+              child: Text("Lvl ${gameState.powerupLevel(type) + 1}",
                   style: const TextStyle(fontSize: 10.0)))
         ],
       ),

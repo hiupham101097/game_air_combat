@@ -9,17 +9,21 @@ import 'package:spritewidget/spritewidget.dart';
 class Ship extends GameObject {
   Ship(GameObjectFactory f) : super(f) {
     // Load ship based on equipped ship selection
-    final shipConfig = ShipConfig.ships[gameState.equippedShip.clamp(0, ShipConfig.ships.length - 1)];
+    final shipConfig = ShipConfig
+        .ships[gameState.equippedShip.clamp(0, ShipConfig.ships.length - 1)];
 
     if (shipConfig.customAsset != null) {
-      // Load custom ship image from imageMap
-      _sprite = Sprite.fromImage(imageMap[shipConfig.customAsset!]!);
+      // Custom fighters are normalized to the original 188px sprite canvas.
+      final spriteName = shipConfig.customAsset!.split('/').last;
+      _sprite = Sprite(texture: shipSpriteSheet[spriteName]!);
+      // The original atlas ship points right; the new fighter art points up.
+      _sprite.rotation = 0.0;
     } else {
       // Load default from sprite sheet
       _sprite = Sprite(texture: f.sheet["ship.png"]!);
+      _sprite.rotation = -90.0;
     }
     _sprite.scale = 0.3;
-    _sprite.rotation = -90.0;
     addChild(_sprite);
 
     _spriteShield = Sprite(texture: f.sheet["shield.png"]!);
@@ -48,8 +52,7 @@ class Ship extends GameObject {
 
   void applyThrust(Offset joystickValue, double scroll) {
     Offset oldPos = position;
-    Offset target = Offset(
-        joystickValue.dx * 160.0 * _speedMultiplier,
+    Offset target = Offset(joystickValue.dx * 160.0 * _speedMultiplier,
         joystickValue.dy * 220.0 - 250.0 - scroll);
     double filterFactor = 0.2;
 

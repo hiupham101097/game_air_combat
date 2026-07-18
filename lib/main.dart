@@ -17,6 +17,7 @@ typedef UpgradePowerUpCallback = void Function(PowerUpType type);
 
 late ImageMap imageMap;
 late SpriteSheet spriteSheet;
+late SpriteSheet shipSpriteSheet;
 late SpriteSheet spriteSheetUI;
 
 late SoundAssets sounds;
@@ -52,7 +53,7 @@ main() async {
   // Chúng ta cần gọi EnsureInitialized nếu chúng ta đang tải hình ảnh trước runApp
   // được gọi là.
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await Firebase.initializeApp();
 
   // Ẩn tất cả các thanh menu
@@ -68,19 +69,18 @@ main() async {
   await imageMap.load(<String>[
     'assets/nebula.png',
     'assets/sprites.png',
+    'assets/ships.png',
     'assets/starfield.png',
     'assets/game_ui.png',
     'assets/ui_bg_top.png',
     'assets/ui_bg_bottom.png',
     'assets/ui_popup.png',
-    'assets/ship_2.png',
-    'assets/ship_phoenix.png',
-    'assets/ship_stealth.png',
-    'assets/ship_guardian.png',
+    'assets/drone_sprite.png',
     'assets/boss_nova.png',
     'assets/boss_phantom.png',
     'assets/boss_titan.png',
     'assets/event_bg.png',
+    'assets/enemy_drone_mite.png',
   ]);
   // Tải âm anh
   await settingSound();
@@ -89,6 +89,12 @@ main() async {
   String json = await rootBundle.loadString('assets/sprites.json');
   spriteSheet = SpriteSheet(
     image: imageMap['assets/sprites.png']!,
+    jsonDefinition: json,
+  );
+
+  json = await rootBundle.loadString('assets/ships.json');
+  shipSpriteSheet = SpriteSheet(
+    image: imageMap['assets/ships.png']!,
     jsonDefinition: json,
   );
 

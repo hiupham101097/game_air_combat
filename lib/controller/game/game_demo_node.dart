@@ -24,7 +24,6 @@ import 'package:mini__game2/main.dart';
 import 'package:mini__game2/model/weapon.dart';
 import 'package:spritewidget/spritewidget.dart';
 
-
 typedef GameOverCallback = void Function(
     int score, int coins, int levelReached);
 
@@ -75,14 +74,19 @@ class GameDemoNode extends NodeWithSize {
 
     // Spawn drones if equipped
     if (_playerState.droneEquipment != null) {
-      PlayerDrone droneLeft = PlayerDrone(_objectFactory, _playerState.droneEquipment!, _playerState.droneEquipmentLevel, true);
+      PlayerDrone droneLeft = PlayerDrone(_objectFactory,
+          _playerState.droneEquipment!, _playerState.droneEquipmentLevel, true);
       droneLeft.position = const Offset(-50, 0);
       _level.addChild(droneLeft);
-      
+
       // If rarity is epic or legendary, spawn a second drone on the right!
-      if (_playerState.droneEquipment!.rarity == Rarity.epic || 
+      if (_playerState.droneEquipment!.rarity == Rarity.epic ||
           _playerState.droneEquipment!.rarity == Rarity.legendary) {
-        PlayerDrone droneRight = PlayerDrone(_objectFactory, _playerState.droneEquipment!, _playerState.droneEquipmentLevel, false);
+        PlayerDrone droneRight = PlayerDrone(
+            _objectFactory,
+            _playerState.droneEquipment!,
+            _playerState.droneEquipmentLevel,
+            false);
         droneRight.position = const Offset(50, 0);
         _level.addChild(droneRight);
       }
@@ -157,7 +161,9 @@ class GameDemoNode extends NodeWithSize {
     // Add shots
     if (_framesToFire == 0 && _joystick.isDown && !_gameOver) {
       fire();
-      int baseFrames = (_playerState.speedLaserActive) ? _framesBetweenShots ~/ 2 : _framesBetweenShots;
+      int baseFrames = (_playerState.speedLaserActive)
+          ? _framesBetweenShots ~/ 2
+          : _framesBetweenShots;
       _framesToFire = (baseFrames / _level.ship.fireRateMultiplier).round();
     }
 
@@ -186,12 +192,15 @@ class GameDemoNode extends NodeWithSize {
       _sounds.playEffect("explosion_boss");
       Flash flash = Flash(size, 1.0);
       addChild(flash);
-      
+
       List<Node> nukeTargets = List<Node>.from(_level.children);
       for (Node node in nukeTargets) {
-        if (node is GameObject && node.canBeDamaged &&
+        if (node is GameObject &&
+            node.canBeDamaged &&
             node.canDamageShip && // Only kill enemies (not power ups)
-            node is! EnemyBoss && node is! BossLaser && node is! BossCarrier) {
+            node is! EnemyBoss &&
+            node is! BossLaser &&
+            node is! BossCarrier) {
           node.addDamage(node.maxDamage);
         }
       }
@@ -204,7 +213,8 @@ class GameDemoNode extends NodeWithSize {
         if (node is GameObject && node.canBeCollected) {
           Offset dir = _level.ship.position - node.position;
           double dist = dir.distance;
-          if (dist > 1.0 && dist < 300.0) { // Avoid div-by-zero when dist==0
+          if (dist > 1.0 && dist < 300.0) {
+            // Avoid div-by-zero when dist==0
             node.position += (dir / dist) * 8.0;
           }
         }
@@ -239,7 +249,9 @@ class GameDemoNode extends NodeWithSize {
         if (node.collidingWith(_level.ship)) {
           if (_playerState.shieldActive) {
             // Hit, but saved by the shield! Only destroy non-boss enemies
-            if (node is! EnemyBoss && node is! BossLaser && node is! BossCarrier) {
+            if (node is! EnemyBoss &&
+                node is! BossLaser &&
+                node is! BossCarrier) {
               node.destroy();
             }
           } else {
@@ -312,16 +324,31 @@ class GameDemoNode extends NodeWithSize {
         _objectFactory.addAsteroids(level, yPos);
       } else if (part == 2) {
         _objectFactory.addEnemyScoutSwarm(level, yPos);
+        if (level >= 2) {
+          _objectFactory.addEliteEnemyWave(level, yPos);
+        }
       } else if (part == 3) {
         _objectFactory.addAsteroids(level, yPos);
+        if (level >= 2) {
+          _objectFactory.addEnemyScoutSwarm(level - 1, yPos);
+        }
       } else if (part == 4) {
         _objectFactory.addEnemyDestroyerSwarm(level, yPos);
       } else if (part == 5) {
         _objectFactory.addAsteroids(level, yPos);
+        if (level >= 3) {
+          _objectFactory.addEnemyDestroyerSwarm(level - 2, yPos);
+        }
       } else if (part == 6) {
         _objectFactory.addEnemyScoutSwarm(level, yPos);
+        if (level >= 5) {
+          _objectFactory.addEliteEnemyWave(level, yPos);
+        }
       } else if (part == 7) {
         _objectFactory.addAsteroids(level, yPos);
+        if (level >= 4) {
+          _objectFactory.addEnemyScoutSwarm(level, yPos);
+        }
       } else if (part == 8) {
         _objectFactory.addBossFight(level, yPos);
       }
@@ -332,17 +359,20 @@ class GameDemoNode extends NodeWithSize {
     int laserLevel = _objectFactory.playerState.laserLevel;
     WeaponType currentWeapon = _playerState.currentWeapon;
 
-    if (currentWeapon == WeaponType.spread) { // Spread Gun
+    if (currentWeapon == WeaponType.spread) {
+      // Spread Gun
       for (double angle in [-110.0, -90.0, -70.0]) {
         Laser shot = Laser(_objectFactory, laserLevel, angle);
         shot.position = _level.ship.position + const Offset(0, -10.0);
         _level.addChild(shot);
       }
-    } else if (currentWeapon == WeaponType.piercing) { // Piercing Beam
+    } else if (currentWeapon == WeaponType.piercing) {
+      // Piercing Beam
       Laser shot = PiercingLaser(_objectFactory, laserLevel, -90.0);
       shot.position = _level.ship.position + const Offset(0, -10.0);
       _level.addChild(shot);
-    } else if (currentWeapon == WeaponType.homing) { // Homing Missiles
+    } else if (currentWeapon == WeaponType.homing) {
+      // Homing Missiles
       Laser shot0 = HomingLaser(_objectFactory, laserLevel, -100.0);
       shot0.position = _level.ship.position + const Offset(17.0, -10.0);
       _level.addChild(shot0);
@@ -350,7 +380,8 @@ class GameDemoNode extends NodeWithSize {
       Laser shot1 = HomingLaser(_objectFactory, laserLevel, -80.0);
       shot1.position = _level.ship.position + const Offset(-17.0, -10.0);
       _level.addChild(shot1);
-    } else { // Basic Laser
+    } else {
+      // Basic Laser
       Laser shot0 = Laser(_objectFactory, laserLevel, -90.0);
       shot0.position = _level.ship.position + const Offset(17.0, -10.0);
       _level.addChild(shot0);
@@ -376,7 +407,7 @@ class GameDemoNode extends NodeWithSize {
       _playerState.hp--;
       _playerState.hpInvincibilityFrames = 120; // 2 seconds of invincibility
       _sounds.playEffect("explosion_player");
-      
+
       // Small explosion effect
       ExplosionBig explo = ExplosionBig(_spritesGame);
       explo.scale = 0.5;
@@ -384,9 +415,9 @@ class GameDemoNode extends NodeWithSize {
       _level.addChild(explo);
       return;
     }
-    
+
     _playerState.hp--;
-    
+
     // Hide ship
     _level.ship.visible = false;
 

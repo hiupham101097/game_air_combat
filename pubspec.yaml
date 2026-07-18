@@ -39,21 +39,27 @@ flutter:
     - assets/nebula.png
     - assets/sprites.json
     - assets/sprites.png
+    - assets/ships.json
+    - assets/ships.png
     - assets/starfield.png
     - assets/game_ui.png
     - assets/game_ui.json
     - assets/ui_bg_top.png
     - assets/ui_bg_bottom.png
     - assets/ui_popup.png
-    - assets/ship_2.png
-    - assets/ship_phoenix.png
-    - assets/ship_stealth.png
-    - assets/ship_guardian.png
+    - assets/ships/ship_2.png
+    - assets/ships/ship_phoenix.png
+    - assets/ships/ship_stealth.png
+    - assets/ships/ship_guardian.png
     - assets/boss_nova.png
     - assets/boss_phantom.png
     - assets/boss_titan.png
     - assets/event_bg.png
+    - assets/enemy_drone_mite.png
+    - assets/energy_stones.png
+    - assets/energy_cores.png
     - assets/drone.png
+    - assets/drone_sprite.png
     - assets/equip_core.png
     - assets/equip_armor.png
     - assets/equip_engine.png

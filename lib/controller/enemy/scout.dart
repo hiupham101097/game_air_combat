@@ -6,11 +6,12 @@ import 'package:mini__game2/controller/game/game_objects.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 class EnemyScout extends Obstacle {
-  EnemyScout(GameObjectFactory f, int level) : super(f) {
+  EnemyScout(GameObjectFactory f, int level, [this.threatLevel = 0])
+      : super(f) {
     _sprite = Sprite(texture: f.sheet["enemy_scout_$level.png"]!);
-    _sprite.scale = 0.32;
+    _sprite.scale = 0.32 + (threatLevel * 0.008).clamp(0.0, 0.05);
 
-    radius = 12.0 + level * 2.0;
+    radius = 12.0 + level * 2.0 + (threatLevel * 0.35).clamp(0.0, 4.0);
 
     if (level == 0) {
       maxDamage = 1.0;
@@ -19,6 +20,7 @@ class EnemyScout extends Obstacle {
     } else if (level == 2) {
       maxDamage = 8.0;
     }
+    maxDamage *= 1.0 + threatLevel * 0.35;
 
     addChild(_sprite);
 
@@ -26,6 +28,7 @@ class EnemyScout extends Obstacle {
   }
 
   final double _swirlSpacing = 80.0;
+  final int threatLevel;
 
   _addRandomSquare(List<Offset> offsets, double x, double y) {
     double xMove = (randomBool()) ? _swirlSpacing : -_swirlSpacing;
@@ -65,7 +68,7 @@ class EnemyScout extends Obstacle {
     MotionSpline spline = MotionSpline(
       setter: (Offset a) => position = a,
       points: points,
-      duration: 6.0,
+      duration: (6.0 - threatLevel * 0.22).clamp(3.2, 6.0),
     );
     spline.tension = 0.7;
     motions.run(MotionRepeatForever(motion: spline));
@@ -84,5 +87,3 @@ class EnemyScout extends Obstacle {
 
   late Sprite _sprite;
 }
-
-

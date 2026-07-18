@@ -12,11 +12,12 @@ import 'package:mini__game2/controller/game/weapon_pickup.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 class EnemyDestroyer extends Obstacle {
-  EnemyDestroyer(GameObjectFactory f, int level) : super(f) {
+  EnemyDestroyer(GameObjectFactory f, int level, [this.threatLevel = 0])
+      : super(f) {
     _sprite = Sprite(texture: f.sheet["enemy_destroyer_$level.png"]!);
-    _sprite.scale = 0.32;
+    _sprite.scale = 0.32 + (threatLevel * 0.01).clamp(0.0, 0.06);
 
-    radius = 24.0 + level * 2;
+    radius = 24.0 + level * 2 + (threatLevel * 0.5).clamp(0.0, 5.0);
 
     if (level == 0) {
       maxDamage = 4.0;
@@ -25,6 +26,8 @@ class EnemyDestroyer extends Obstacle {
     } else if (level == 2) {
       maxDamage = 16.0;
     }
+    maxDamage *= 1.0 + threatLevel * 0.45;
+    _countDown = (180 - threatLevel * 8).clamp(60, 180) + randomInt(90);
 
     addChild(_sprite);
 
@@ -33,7 +36,8 @@ class EnemyDestroyer extends Obstacle {
     ];
   }
 
-  int _countDown = randomInt(120) + 240;
+  late int _countDown;
+  final int threatLevel;
 
   @override
   void setupActions() {
@@ -48,7 +52,8 @@ class EnemyDestroyer extends Obstacle {
     double rand = randomDouble();
     if (rand < 0.05) {
       // 5% chance to drop a weapon
-      return WeaponPickup(f, WeaponType.values[randomInt(WeaponType.values.length)]);
+      return WeaponPickup(
+          f, WeaponType.values[randomInt(WeaponType.values.length)]);
     } else if (rand < 0.15) {
       // 10% chance to drop a powerup
       return PowerUp(f, nextPowerUpType());
@@ -63,11 +68,12 @@ class EnemyDestroyer extends Obstacle {
       // Shoot at player
       f.sounds.playEffect("laser");
 
-      EnemyLaser laser = EnemyLaser(f, rotation, 5.0, const Color(0xffffe38e));
+      EnemyLaser laser = EnemyLaser(
+          f, rotation, 5.0 + threatLevel * 0.7, const Color(0xffffe38e));
       laser.position = position;
       f.level.addChild(laser);
 
-      _countDown = 60 + randomInt(120);
+      _countDown = (60 - threatLevel * 4).clamp(25, 60) + randomInt(90);
     }
   }
 
@@ -79,5 +85,3 @@ class EnemyDestroyer extends Obstacle {
 
   late Sprite _sprite;
 }
-
-

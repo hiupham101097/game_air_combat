@@ -6,9 +6,6 @@ import 'package:mini__game2/controller/game/game_object_factory.dart';
 import 'package:mini__game2/main.dart';
 import 'package:spritewidget/spritewidget.dart';
 
-
-
-
 abstract class GameObject extends Node {
   GameObject(this.f);
 
@@ -18,7 +15,9 @@ abstract class GameObject extends Node {
   bool canBeDamaged = true;
   bool canBeCollected = false;
   double maxDamage = 3000.0;
-  double damage = 1000.0;
+  // Accumulated damage received. Starting at zero is essential for maxDamage
+  // to represent actual health rather than every target dying on the first hit.
+  double damage = 0.0;
 
   final GameObjectFactory f;
 
@@ -93,7 +92,6 @@ abstract class GameObject extends Node {
   void setupActions() {}
 }
 
-
 Color colorForDamage(double damage, double maxDamage, [Color? toColor]) {
   int r, g, b;
   if (toColor == null) {
@@ -109,8 +107,6 @@ Color colorForDamage(double damage, double maxDamage, [Color? toColor]) {
   int alpha = ((200.0 * damage) ~/ maxDamage).clamp(0, 200);
   return Color.fromARGB(alpha, r, g, b);
 }
-
-
 
 class Collectable extends GameObject {
   Collectable(GameObjectFactory f) : super(f) {

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:mini__game2/main.dart';
 import 'package:mini__game2/model/ship_model.dart' as ship_models;
@@ -9,6 +11,88 @@ class InventoryScreen extends StatefulWidget {
 
   @override
   State<InventoryScreen> createState() => _InventoryScreenState();
+}
+
+class _GachaReveal extends StatefulWidget {
+  const _GachaReveal({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_GachaReveal> createState() => _GachaRevealState();
+}
+
+class _GachaRevealState extends State<_GachaReveal> {
+  bool _showResult = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(const Duration(milliseconds: 950), () {
+      if (mounted) {
+        setState(() => _showResult = true);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 280),
+      switchInCurve: Curves.easeOutBack,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.88, end: 1.0).animate(animation),
+          child: child,
+        ),
+      ),
+      child: _showResult
+          ? KeyedSubtree(key: const ValueKey('result'), child: widget.child)
+          : Dialog(
+              key: const ValueKey('opening'),
+              backgroundColor: const Color(0xFF0d0d2b),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(color: Colors.cyanAccent, width: 1.5),
+              ),
+              child: SizedBox(
+                width: 250,
+                height: 250,
+                child: TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 900),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  curve: Curves.easeInOut,
+                  builder: (context, progress, child) {
+                    final pulse =
+                        0.88 + math.sin(progress * math.pi * 5) * 0.12;
+                    final rotation = math.sin(progress * math.pi * 7) * 0.08;
+                    return Transform.rotate(
+                      angle: rotation,
+                      child: Transform.scale(scale: pulse, child: child),
+                    );
+                  },
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.all_inbox_rounded,
+                          color: Colors.amberAccent, size: 96),
+                      SizedBox(height: 18),
+                      Text('ĐANG MỞ RƯƠNG...',
+                          style: TextStyle(
+                            fontFamily: 'Orbitron',
+                            color: Colors.cyanAccent,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          )),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
 }
 
 class _InventoryScreenState extends State<InventoryScreen>
@@ -48,7 +132,8 @@ class _InventoryScreenState extends State<InventoryScreen>
               padding: const EdgeInsets.only(right: 16.0),
               child: Row(
                 children: [
-                  const Icon(Icons.monetization_on, color: Colors.amber, size: 18),
+                  const Icon(Icons.monetization_on,
+                      color: Colors.amber, size: 18),
                   const SizedBox(width: 4),
                   Text(
                     '${gameState.coins}',
@@ -113,7 +198,12 @@ class _InventoryScreenState extends State<InventoryScreen>
               width: isEquipped ? 2 : 1,
             ),
             boxShadow: isEquipped
-                ? [const BoxShadow(color: Colors.cyanAccent, blurRadius: 10, spreadRadius: 1)]
+                ? [
+                    const BoxShadow(
+                        color: Colors.cyanAccent,
+                        blurRadius: 10,
+                        spreadRadius: 1)
+                  ]
                 : [],
           ),
           child: Padding(
@@ -131,9 +221,11 @@ class _InventoryScreenState extends State<InventoryScreen>
                   child: ship.customAsset != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.asset(ship.customAsset!, fit: BoxFit.contain),
+                          child: Image.asset(ship.customAsset!,
+                              fit: BoxFit.contain),
                         )
-                      : const Icon(Icons.rocket, color: Colors.white70, size: 48),
+                      : const Icon(Icons.rocket,
+                          color: Colors.white70, size: 48),
                 ),
                 const SizedBox(width: 16),
                 // Info
@@ -154,10 +246,13 @@ class _InventoryScreenState extends State<InventoryScreen>
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.speed, color: Colors.orangeAccent, size: 14),
+                          const Icon(Icons.speed,
+                              color: Colors.orangeAccent, size: 14),
                           const SizedBox(width: 4),
-                          Text('Speed ×${ship.speedMultiplier.toStringAsFixed(1)}',
-                              style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)),
+                          Text(
+                              'Speed ×${ship.speedMultiplier.toStringAsFixed(1)}',
+                              style: const TextStyle(
+                                  color: Colors.orangeAccent, fontSize: 12)),
                         ],
                       ),
                     ],
@@ -168,7 +263,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                   children: [
                     if (isEquipped)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: Colors.cyanAccent,
                           borderRadius: BorderRadius.circular(8),
@@ -244,7 +340,8 @@ class _InventoryScreenState extends State<InventoryScreen>
       itemCount: WeaponConfig.weapons.length,
       itemBuilder: (context, index) {
         final weapon = WeaponConfig.weapons.values.elementAt(index);
-        final isUnlocked = gameState.unlockedWeapons.contains(weapon.type.index);
+        final isUnlocked =
+            gameState.unlockedWeapons.contains(weapon.type.index);
         final isEquipped = gameState.equippedWeapon == weapon.type.index;
 
         return AnimatedContainer(
@@ -263,8 +360,10 @@ class _InventoryScreenState extends State<InventoryScreen>
             ),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: const Icon(Icons.flash_on, color: Colors.purpleAccent, size: 32),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: const Icon(Icons.flash_on,
+                color: Colors.purpleAccent, size: 32),
             title: Text(weapon.name,
                 style: const TextStyle(
                     color: Colors.white,
@@ -274,21 +373,25 @@ class _InventoryScreenState extends State<InventoryScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(weapon.description,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 12)),
                 const SizedBox(height: 4),
                 Row(
                   children: [
                     const Icon(Icons.shield, color: Colors.redAccent, size: 12),
                     const SizedBox(width: 4),
-                    Text('Damage ×${weapon.damageMultiplier.toStringAsFixed(1)}',
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 11)),
+                    Text(
+                        'Damage ×${weapon.damageMultiplier.toStringAsFixed(1)}',
+                        style: const TextStyle(
+                            color: Colors.redAccent, fontSize: 11)),
                   ],
                 )
               ],
             ),
             trailing: isEquipped
                 ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.purpleAccent,
                       borderRadius: BorderRadius.circular(8),
@@ -301,7 +404,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                             fontSize: 10)))
                 : isUnlocked
                     ? ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade700),
                         onPressed: () {
                           setState(() {
                             gameState.equippedWeapon = weapon.type.index;
@@ -309,7 +413,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                           });
                         },
                         child: const Text('EQUIP',
-                            style: TextStyle(fontFamily: 'Orbitron', fontSize: 10)),
+                            style: TextStyle(
+                                fontFamily: 'Orbitron', fontSize: 10)),
                       )
                     : ElevatedButton(
                         style: ElevatedButton.styleFrom(
@@ -356,14 +461,23 @@ class _InventoryScreenState extends State<InventoryScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   Row(children: [
-                    const Icon(Icons.diamond, color: Colors.cyanAccent, size: 16),
+                    const Icon(Icons.diamond,
+                        color: Colors.cyanAccent, size: 16),
                     const SizedBox(width: 4),
-                    Text('${gameState.energyStones}', style: const TextStyle(color: Colors.cyanAccent, fontFamily: 'Orbitron', fontWeight: FontWeight.bold)),
+                    Text('${gameState.energyStones}',
+                        style: const TextStyle(
+                            color: Colors.cyanAccent,
+                            fontFamily: 'Orbitron',
+                            fontWeight: FontWeight.bold)),
                   ]),
                   Row(children: [
                     const Icon(Icons.bolt, color: Colors.amberAccent, size: 16),
                     const SizedBox(width: 4),
-                    Text('${gameState.energyCores}', style: const TextStyle(color: Colors.amberAccent, fontFamily: 'Orbitron', fontWeight: FontWeight.bold)),
+                    Text('${gameState.energyCores}',
+                        style: const TextStyle(
+                            color: Colors.amberAccent,
+                            fontFamily: 'Orbitron',
+                            fontWeight: FontWeight.bold)),
                   ]),
                 ],
               ),
@@ -374,22 +488,36 @@ class _InventoryScreenState extends State<InventoryScreen>
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _equipmentSubTab == 0 ? Colors.cyanAccent : Colors.white10,
-                        foregroundColor: _equipmentSubTab == 0 ? Colors.black : Colors.white,
+                        backgroundColor: _equipmentSubTab == 0
+                            ? Colors.cyanAccent
+                            : Colors.white10,
+                        foregroundColor:
+                            _equipmentSubTab == 0 ? Colors.black : Colors.white,
                       ),
                       onPressed: () => setState(() => _equipmentSubTab = 0),
-                      child: const Text('KHO ĐỒ', style: TextStyle(fontFamily: 'Orbitron', fontWeight: FontWeight.bold, fontSize: 12)),
+                      child: const Text('KHO ĐỒ',
+                          style: TextStyle(
+                              fontFamily: 'Orbitron',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12)),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _equipmentSubTab == 1 ? Colors.orangeAccent : Colors.white10,
-                        foregroundColor: _equipmentSubTab == 1 ? Colors.black : Colors.white,
+                        backgroundColor: _equipmentSubTab == 1
+                            ? Colors.orangeAccent
+                            : Colors.white10,
+                        foregroundColor:
+                            _equipmentSubTab == 1 ? Colors.black : Colors.white,
                       ),
                       onPressed: () => setState(() => _equipmentSubTab = 1),
-                      child: const Text('NÂNG CẤP', style: TextStyle(fontFamily: 'Orbitron', fontWeight: FontWeight.bold, fontSize: 12)),
+                      child: const Text('NÂNG CẤP',
+                          style: TextStyle(
+                              fontFamily: 'Orbitron',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12)),
                     ),
                   ),
                 ],
@@ -397,10 +525,12 @@ class _InventoryScreenState extends State<InventoryScreen>
             ],
           ),
         ),
-        
+
         // ── Content ──────────────────────────────────────────────
         Expanded(
-          child: _equipmentSubTab == 0 ? _buildEquipmentInventory() : _buildEquipmentUpgrade(),
+          child: _equipmentSubTab == 0
+              ? _buildEquipmentInventory()
+              : _buildEquipmentUpgrade(),
         ),
       ],
     );
@@ -433,12 +563,18 @@ class _InventoryScreenState extends State<InventoryScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6a0dad),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () => _rollGacha(context, amount: 1),
-                      icon: const Icon(Icons.shopping_basket, color: Colors.white, size: 18),
+                      icon: const Icon(Icons.shopping_basket,
+                          color: Colors.white, size: 18),
                       label: const Text('x1 (1000)',
-                          style: TextStyle(fontFamily: 'Orbitron', color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          style: TextStyle(
+                              fontFamily: 'Orbitron',
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -447,15 +583,31 @@ class _InventoryScreenState extends State<InventoryScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber.shade800,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () => _rollGacha(context, amount: 10),
-                      icon: const Icon(Icons.shopping_cart_checkout, color: Colors.white, size: 18),
+                      icon: const Icon(Icons.shopping_cart_checkout,
+                          color: Colors.white, size: 18),
                       label: const Text('x10 (10000)',
-                          style: TextStyle(fontFamily: 'Orbitron', color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          style: TextStyle(
+                              fontFamily: 'Orbitron',
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Bảo đảm LEGENDARY: ${gameState.gachaPity}/80',
+                style: const TextStyle(
+                  color: Colors.amberAccent,
+                  fontFamily: 'Orbitron',
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -501,7 +653,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                           decoration: BoxDecoration(
                             color: const Color(0xFF12122a),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: item.color.withAlpha(180), width: 1.5),
+                            border: Border.all(
+                                color: item.color.withAlpha(180), width: 1.5),
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
@@ -513,7 +666,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                           const Positioned(
                             right: 0,
                             bottom: 0,
-                            child: Icon(Icons.lock, color: Colors.white70, size: 14),
+                            child: Icon(Icons.lock,
+                                color: Colors.white70, size: 14),
                           ),
                       ],
                     ),
@@ -644,7 +798,16 @@ class _InventoryScreenState extends State<InventoryScreen>
 
     List<GachaResult> results = [];
     for (int i = 0; i < amount; i++) {
-      results.add(EquipmentItem.rollGacha());
+      final forceLegendary = gameState.gachaPity >= 79;
+      final result = EquipmentItem.rollGacha(forceLegendary: forceLegendary);
+      results.add(result);
+
+      if (result.type == GachaResultType.equipment &&
+          result.equipment!.rarity == Rarity.legendary) {
+        gameState.gachaPity = 0;
+      } else {
+        gameState.gachaPity++;
+      }
     }
 
     int totalStonesGained = 0;
@@ -683,111 +846,171 @@ class _InventoryScreenState extends State<InventoryScreen>
     });
 
     // Show result dialog
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (dialogContext) => Dialog(
-        backgroundColor: const Color(0xFF0d0d2b),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('✨ KẾT QUẢ MỞ RƯƠNG ✨',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontFamily: 'Orbitron',
-                      color: Colors.cyanAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14)),
-              const SizedBox(height: 20),
-              
-              if (amount == 1 && results.first.type == GachaResultType.equipment && equipmentGained.isNotEmpty) ...[
-                // Show Single Equipment (only if it wasn't a duplicate)
-                Container(
-                  width: 90, height: 90,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF12122a), shape: BoxShape.circle,
-                    border: Border.all(color: results.first.equipment!.color, width: 3),
-                    boxShadow: [BoxShadow(color: results.first.equipment!.color.withAlpha(200), blurRadius: 24, spreadRadius: 6)],
-                  ),
-                  child: ClipOval(child: _equipmentIconImage(results.first.equipment!.slot, size: 90, tint: results.first.equipment!.color)),
-                ),
-                const SizedBox(height: 16),
-                _rarityBadge(results.first.equipment!.rarity),
-                const SizedBox(height: 8),
-                Text(results.first.equipment!.name, textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Orbitron', color: results.first.equipment!.color, fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 6),
-                Text(results.first.equipment!.description, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60, fontSize: 13)),
-              ] else ...[
-                // Show Summary for x10 (or x1 that was stones/cores/duplicate)
-                if (totalStonesGained > 0)
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Icon(Icons.diamond, color: Colors.cyanAccent, size: 24),
-                    const SizedBox(width: 8),
-                    Text('+$totalStonesGained Đá Năng Lượng', style: const TextStyle(color: Colors.cyanAccent, fontSize: 16, fontWeight: FontWeight.bold)),
-                  ]),
-                const SizedBox(height: 8),
-                if (totalCoresGained > 0)
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Icon(Icons.bolt, color: Colors.amberAccent, size: 24),
-                    const SizedBox(width: 8),
-                    Text('+$totalCoresGained Lõi Năng Lượng', style: const TextStyle(color: Colors.amberAccent, fontSize: 16, fontWeight: FontWeight.bold)),
-                  ]),
-                if (duplicatesConverted > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text('($duplicatesConverted trùng lặp đã được quy đổi)', style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                  ),
-                const SizedBox(height: 16),
-                
-                if (equipmentGained.isNotEmpty) ...[
-                  const Text('TRANG BỊ MỚI NHẬN:', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 100, // Fixed height for scrollable list of new equipments
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      scrollDirection: Axis.horizontal,
-                      itemCount: equipmentGained.length,
-                      itemBuilder: (context, idx) {
-                        final eq = equipmentGained[idx];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 50, height: 50,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF12122a), borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: eq.color, width: 2),
-                                ),
-                                child: ClipRRect(borderRadius: BorderRadius.circular(6), child: _equipmentIconImage(eq.slot, size: 50, tint: eq.color)),
-                              ),
-                              const SizedBox(height: 4),
-                              _rarityBadge(eq.rarity),
-                            ],
-                          ),
-                        );
-                      }
-                    ),
-                  ),
-                ]
-              ],
-              
-              const SizedBox(height: 24),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.cyanAccent,
-                    minimumSize: const Size(double.infinity, 44)),
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('TUYỆT VỜI!',
+      useRootNavigator: false,
+      barrierDismissible: false,
+      builder: (dialogContext) => _GachaReveal(
+        child: Dialog(
+          backgroundColor: const Color(0xFF0d0d2b),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('✨ KẾT QUẢ MỞ RƯƠNG ✨',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                         fontFamily: 'Orbitron',
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold)),
-              ),
-            ],
+                        color: Colors.cyanAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14)),
+                const SizedBox(height: 20),
+                if (amount == 1 &&
+                    results.first.type == GachaResultType.equipment &&
+                    equipmentGained.isNotEmpty) ...[
+                  // Show Single Equipment (only if it wasn't a duplicate)
+                  Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF12122a),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: results.first.equipment!.color, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                            color:
+                                results.first.equipment!.color.withAlpha(200),
+                            blurRadius: 24,
+                            spreadRadius: 6)
+                      ],
+                    ),
+                    child: ClipOval(
+                        child: _equipmentIconImage(
+                            results.first.equipment!.slot,
+                            size: 90,
+                            tint: results.first.equipment!.color)),
+                  ),
+                  const SizedBox(height: 16),
+                  _rarityBadge(results.first.equipment!.rarity),
+                  const SizedBox(height: 8),
+                  Text(results.first.equipment!.name,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontFamily: 'Orbitron',
+                          color: results.first.equipment!.color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16)),
+                  const SizedBox(height: 6),
+                  Text(results.first.equipment!.description,
+                      textAlign: TextAlign.center,
+                      style:
+                          const TextStyle(color: Colors.white60, fontSize: 13)),
+                ] else ...[
+                  // Show Summary for x10 (or x1 that was stones/cores/duplicate)
+                  if (totalStonesGained > 0)
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Image.asset(
+                        'assets/energy_stones.png',
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(width: 8),
+                      Text('+$totalStonesGained Đá Năng Lượng',
+                          style: const TextStyle(
+                              color: Colors.cyanAccent,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
+                    ]),
+                  const SizedBox(height: 8),
+                  if (totalCoresGained > 0)
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Image.asset(
+                        'assets/energy_cores.png',
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(width: 8),
+                      Text('+$totalCoresGained Lõi Năng Lượng',
+                          style: const TextStyle(
+                              color: Colors.amberAccent,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
+                    ]),
+                  if (duplicatesConverted > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                          '($duplicatesConverted trùng lặp đã được quy đổi)',
+                          style: const TextStyle(
+                              color: Colors.white54, fontSize: 11)),
+                    ),
+                  const SizedBox(height: 16),
+
+                  if (equipmentGained.isNotEmpty) ...[
+                    const Text('TRANG BỊ MỚI NHẬN:',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height:
+                          100, // Fixed height for scrollable list of new equipments
+                      child: ListView.builder(
+                          shrinkWrap: true,
+                          scrollDirection: Axis.horizontal,
+                          itemCount: equipmentGained.length,
+                          itemBuilder: (context, idx) {
+                            final eq = equipmentGained[idx];
+                            return Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4.0),
+                              child: Column(
+                                children: [
+                                  Container(
+                                    width: 50,
+                                    height: 50,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF12122a),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border:
+                                          Border.all(color: eq.color, width: 2),
+                                    ),
+                                    child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: _equipmentIconImage(eq.slot,
+                                            size: 50, tint: eq.color)),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  _rarityBadge(eq.rarity),
+                                ],
+                              ),
+                            );
+                          }),
+                    ),
+                  ]
+                ],
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.cyanAccent,
+                      minimumSize: const Size(double.infinity, 44)),
+                  onPressed: () =>
+                      Navigator.of(dialogContext, rootNavigator: false).pop(),
+                  child: const Text('TUYỆT VỜI!',
+                      style: TextStyle(
+                          fontFamily: 'Orbitron',
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -818,7 +1041,8 @@ class _InventoryScreenState extends State<InventoryScreen>
   }
 
   /// Returns a widget showing the correct equipment icon image
-  Widget _equipmentIconImage(EquipmentSlot slot, {double size = 36, Color? tint}) {
+  Widget _equipmentIconImage(EquipmentSlot slot,
+      {double size = 36, Color? tint}) {
     String assetPath;
     switch (slot) {
       case EquipmentSlot.core:
@@ -874,8 +1098,7 @@ class _InventoryScreenState extends State<InventoryScreen>
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: _equipmentIconImage(slot,
-                size: 62, tint: item?.color),
+            child: _equipmentIconImage(slot, size: 62, tint: item?.color),
           ),
         ),
         const SizedBox(height: 5),
@@ -887,12 +1110,12 @@ class _InventoryScreenState extends State<InventoryScreen>
                 fontWeight: FontWeight.bold)),
         if (item != null)
           SizedBox(
-            width: 68,
-            child: Text(item.name,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: item.color, fontSize: 7),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis)),
+              width: 68,
+              child: Text(item.name,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: item.color, fontSize: 7),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis)),
       ],
     );
   }
@@ -905,7 +1128,9 @@ class _InventoryScreenState extends State<InventoryScreen>
         .toList();
 
     if (ownedItems.isEmpty) {
-      return const Center(child: Text('Chưa sở hữu trang bị nào!', style: TextStyle(color: Colors.white54)));
+      return const Center(
+          child: Text('Chưa sở hữu trang bị nào!',
+              style: TextStyle(color: Colors.white54)));
     }
 
     return ListView.builder(
@@ -916,7 +1141,8 @@ class _InventoryScreenState extends State<InventoryScreen>
         final level = gameState.equipmentLevels[item.id] ?? 1;
         final stoneCost = item.getUpgradeStoneCost(level);
         final coreCost = item.getUpgradeCoreCost(level);
-        final canUpgrade = gameState.energyStones >= stoneCost && gameState.energyCores >= coreCost;
+        final canUpgrade = gameState.energyStones >= stoneCost &&
+            gameState.energyCores >= coreCost;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
@@ -939,52 +1165,84 @@ class _InventoryScreenState extends State<InventoryScreen>
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(6),
-                  child: _equipmentIconImage(item.slot, size: 50, tint: item.color),
+                  child: _equipmentIconImage(item.slot,
+                      size: 50, tint: item.color),
                 ),
               ),
               const SizedBox(width: 12),
-              
+
               // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.name, style: TextStyle(color: item.color, fontFamily: 'Orbitron', fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text(item.name,
+                        style: TextStyle(
+                            color: item.color,
+                            fontFamily: 'Orbitron',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
                     const SizedBox(height: 4),
-                    Text('Level $level ➔ ${level + 1}', style: const TextStyle(color: Colors.cyanAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                    Text('Level $level ➔ ${level + 1}',
+                        style: const TextStyle(
+                            color: Colors.cyanAccent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.diamond, size: 12, color: Colors.cyanAccent),
-                        Text(' $stoneCost   ', style: TextStyle(color: gameState.energyStones >= stoneCost ? Colors.white : Colors.red, fontSize: 11)),
-                        const Icon(Icons.bolt, size: 12, color: Colors.amberAccent),
-                        Text(' $coreCost', style: TextStyle(color: gameState.energyCores >= coreCost ? Colors.white : Colors.red, fontSize: 11)),
+                        const Icon(Icons.diamond,
+                            size: 12, color: Colors.cyanAccent),
+                        Text(' $stoneCost   ',
+                            style: TextStyle(
+                                color: gameState.energyStones >= stoneCost
+                                    ? Colors.white
+                                    : Colors.red,
+                                fontSize: 11)),
+                        const Icon(Icons.bolt,
+                            size: 12, color: Colors.amberAccent),
+                        Text(' $coreCost',
+                            style: TextStyle(
+                                color: gameState.energyCores >= coreCost
+                                    ? Colors.white
+                                    : Colors.red,
+                                fontSize: 11)),
                       ],
                     ),
                   ],
                 ),
               ),
-              
+
               // Upgrade Button
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: canUpgrade ? Colors.green.shade700 : Colors.white10,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  backgroundColor:
+                      canUpgrade ? Colors.green.shade700 : Colors.white10,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   minimumSize: const Size(60, 36),
                 ),
-                onPressed: canUpgrade ? () {
-                  setState(() {
-                    gameState.energyStones -= stoneCost;
-                    gameState.energyCores -= coreCost;
-                    gameState.equipmentLevels[item.id] = level + 1;
-                    gameState.store();
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('✨ Đã nâng cấp ${item.name} lên Level ${level + 1}!'),
-                    backgroundColor: Colors.green.shade800,
-                  ));
-                } : null,
-                child: const Text('NÂNG', style: TextStyle(fontFamily: 'Orbitron', fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                onPressed: canUpgrade
+                    ? () {
+                        setState(() {
+                          gameState.energyStones -= stoneCost;
+                          gameState.energyCores -= coreCost;
+                          gameState.equipmentLevels[item.id] = level + 1;
+                          gameState.store();
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(
+                              '✨ Đã nâng cấp ${item.name} lên Level ${level + 1}!'),
+                          backgroundColor: Colors.green.shade800,
+                        ));
+                      }
+                    : null,
+                child: const Text('NÂNG',
+                    style: TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
               ),
             ],
           ),

@@ -11,8 +11,8 @@ import 'package:spritewidget/spritewidget.dart';
 class AsteroidPowerUp extends AsteroidBig {
   late PowerUpType _powerUpType;
 
-
-  AsteroidPowerUp(GameObjectFactory f) : super(f) {
+  AsteroidPowerUp(GameObjectFactory f, [int threatLevel = 0])
+      : super(f, threatLevel) {
     _powerUpType = nextPowerUpType();
 
     removeAllChildren();

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/game/game_laser.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
+import 'package:mini__game2/main.dart';
 import 'package:mini__game2/model/equipment.dart';
 import 'package:spritewidget/spritewidget.dart';
 import 'package:vector_math/vector_math.dart';
@@ -12,15 +13,15 @@ class PlayerDrone extends GameObject {
   final int level;
   final bool isLeftSide;
 
-  PlayerDrone(GameObjectFactory f, this.equipment, this.level, this.isLeftSide) : super(f) {
+  PlayerDrone(GameObjectFactory f, this.equipment, this.level, this.isLeftSide)
+      : super(f) {
     canBeDamaged = false;
     canDamageShip = false;
 
     // Drone body using ship sprite but scaled very small
-    _sprite = Sprite(texture: f.sheet["ship.png"]!);
+    _sprite = Sprite.fromImage(imageMap['assets/drone_sprite.png']!);
     _sprite.scale = 0.18; // Much smaller than before — real "mini" drone size
     _sprite.rotation = isLeftSide ? -15.0 : 15.0; // Slight tilt for personality
-    _sprite.colorOverlay = equipment.color; // Tint matches rarity color
     addChild(_sprite);
 
     // Engine glow effect below drone
@@ -42,9 +43,7 @@ class PlayerDrone extends GameObject {
 
     // Guard against zero or negative fire rate
     final fireRate = equipment.getDroneFireRate(level);
-    _fireDelay = fireRate > 0
-        ? (60.0 / fireRate).round()
-        : 60;
+    _fireDelay = fireRate > 0 ? (60.0 / fireRate).round() : 60;
   }
 
   late Sprite _sprite;

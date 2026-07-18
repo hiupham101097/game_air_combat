@@ -2,31 +2,38 @@ import 'dart:convert';
 
 import 'package:mini__game2/controller/cloud_sync_service.dart';
 import 'package:mini__game2/main.dart';
-import 'package:mini__game2/model/equipment.dart';
 import 'package:mini__game2/model/quest.dart';
-import 'package:mini__game2/model/ship_model.dart';
-import 'package:mini__game2/model/weapon.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 //cấu hình trạng thái cho game
 class PersistantGameState {
+  static const int _progressionVersion = 2;
+
   Future load() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr =
         prefs.getString('game_prefs'); //Lấy data từ bộ nhớ thư mục máy
+    var resetProgression = false;
     if (jsonStr != null) {
       JsonDecoder decoder = const JsonDecoder();
       Map data = decoder.convert(jsonStr); //convert json
-      _fromJson(data);
+      if (data['progressionVersion'] == _progressionVersion) {
+        _fromJson(data);
+      } else {
+        _resetProgression();
+        resetProgression = true;
+      }
     }
 
     _checkDailyReset();
+    if (resetProgression) await store();
   }
 
   void _fromJson(Map data) {
     coins = data['coins'] ?? 0;
     energyStones = data['energyStones'] ?? 0;
     energyCores = data['energyCores'] ?? 0;
+    gachaPity = data['gachaPity'] ?? 0;
     _powerupLevels =
         data['powerUpLevels']?.cast<int>() ?? <int>[0, 0, 0, 0, 0, 0, 0];
     // Pad old saves that only had 4 entries to the new length of 7
@@ -65,25 +72,37 @@ class PersistantGameState {
       equipmentLevels = <String, int>{};
     }
 
-    // [TEST MODE] Ghi đè dữ liệu lưu cũ để đảm bảo test mode hoạt động
-    coins = 999999;
-    energyStones = 5000;
-    energyCores = 100;
-    unlockedWeapons = List.generate(WeaponType.values.length, (i) => i);
-    unlockedShips = List.generate(ShipConfig.ships.length, (i) => i);
-    ownedEquipment = EquipmentItem.database.map((e) => e.id).toList();
-    for (var id in ownedEquipment) {
-      if (!equipmentLevels.containsKey(id)) {
-        equipmentLevels[id] = 1; // Default test mode level
-      }
-    }
+  }
+
+  void _resetProgression() {
+    coins = 0;
+    energyStones = 0;
+    energyCores = 0;
+    gachaPity = 0;
+    _powerupLevels = <int>[0, 0, 0, 0, 0, 0, 0];
+    _currentStartingLevel = 0;
+    maxStartingLevel = 0;
+    laserLevel = 0;
+    _lastScore = 0;
+    weeklyBestScore = 0;
+    unlockedWeapons = <int>[0];
+    equippedWeapon = 0;
+    unlockedShips = <int>[0];
+    equippedShip = 0;
+    ownedEquipment = <String>[];
+    equippedLoadout = <String, String>{};
+    equipmentLevels = <String, int>{};
+    lastLoginDate = '';
+    _generateDailyQuests();
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'progressionVersion': _progressionVersion,
       'coins': coins,
       'energyStones': energyStones,
       'energyCores': energyCores,
+      'gachaPity': gachaPity,
       'powerUpLevels': _powerupLevels,
       'currentStartingLevel': _currentStartingLevel,
       'maxStartingLevel': maxStartingLevel,
@@ -116,33 +135,31 @@ class PersistantGameState {
 
   Future syncFromCloud() async {
     final cloudData = await CloudSyncService().pullData();
-    if (cloudData != null) {
+    if (cloudData != null &&
+        cloudData['progressionVersion'] == _progressionVersion) {
       _fromJson(cloudData);
       // Save downloaded data to local storage
       await store();
     }
   }
 
-  int coins = 999999; // [TEST MODE] bật lên để test
+  int coins = 0;
 
-  List<int> unlockedWeapons = List.generate(
-      WeaponType.values.length, (i) => i); // [TEST] Mở khóa tất cả vũ khí
+  List<int> unlockedWeapons = <int>[0];
   int equippedWeapon = 0;
 
-  List<int> unlockedShips = List.generate(
-      ShipConfig.ships.length, (i) => i); // [TEST] Mở khóa tất cả chiến cơ
+  List<int> unlockedShips = <int>[0];
   int equippedShip = 0;
 
   String lastLoginDate = "";
 
-  List<String> ownedEquipment = EquipmentItem.database
-      .map((e) => e.id)
-      .toList(); // [TEST] Sở hữu toàn bộ trang bị
+  List<String> ownedEquipment = <String>[];
   Map<String, String> equippedLoadout = <String, String>{};
   Map<String, int> equipmentLevels = <String, int>{}; // ID -> Level
 
   int energyStones = 0;
   int energyCores = 0;
+  int gachaPity = 0;
 
   List<DailyQuest> dailyQuests = [];
 
@@ -166,9 +183,9 @@ class PersistantGameState {
     }
   }
 
-  int maxStartingLevel = 3;
+  int maxStartingLevel = 0;
 
-  int laserLevel = 3;
+  int laserLevel = 0;
 
   int maxLaserLevel = 11;
 
