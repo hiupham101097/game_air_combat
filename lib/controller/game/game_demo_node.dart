@@ -2,9 +2,6 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:mini__game2/controller/enemy/boss.dart';
-import 'package:mini__game2/controller/enemy/boss_laser.dart';
-import 'package:mini__game2/controller/enemy/boss_carrier.dart';
 import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/flash.dart';
 import 'package:mini__game2/controller/game/game_laser.dart';
@@ -26,10 +23,12 @@ import 'package:spritewidget/spritewidget.dart';
 
 typedef GameOverCallback = void Function(
     int score, int coins, int levelReached);
+typedef BossBuffCallback = void Function(List<BossBuffReward> choices);
 
 class GameDemoNode extends NodeWithSize {
   GameDemoNode(this._images, this._spritesGame, this._spritesUI, this._sounds,
-      this._gameState, this._isEventMode, this._gameOverCallback)
+      this._gameState, this._isEventMode, this._gameOverCallback,
+      {this.onBossBuff})
       : super(const Size(320.0, 320.0)) {
     // Add background - use fiery event background in Event Mode
     if (_isEventMode) {
@@ -58,6 +57,8 @@ class GameDemoNode extends NodeWithSize {
 
     // Add heads up display
     _playerState = PlayerState(_spritesUI, _spritesGame, _gameState);
+    _playerState.coinMultiplier = _isEventMode ? 2 : 1;
+    _playerState.onBossBuff = onBossBuff;
     _playerState.position = const Offset(0.0, 20.0);
     addChild(_playerState);
 
@@ -68,7 +69,7 @@ class GameDemoNode extends NodeWithSize {
     _level.ship.setupActions();
     _level.addChild(_level.ship);
 
-    // Add the joystick
+    // Keep the original virtual joystick controls.
     _joystick = VirtualJoystick();
     _gameScreen.addChild(_joystick);
 
@@ -107,6 +108,11 @@ class GameDemoNode extends NodeWithSize {
 
   // Callback
   final GameOverCallback _gameOverCallback;
+  final BossBuffCallback? onBossBuff;
+
+  void chooseBossBuff(BossBuffReward reward) {
+    _playerState.applyBossBuff(reward);
+  }
 
   // Game screen nodes
   late Node _gameScreen;
@@ -164,7 +170,14 @@ class GameDemoNode extends NodeWithSize {
       int baseFrames = (_playerState.speedLaserActive)
           ? _framesBetweenShots ~/ 2
           : _framesBetweenShots;
-      _framesToFire = (baseFrames / _level.ship.fireRateMultiplier).round();
+      if (_playerState.currentWeapon == WeaponType.rapid) {
+        baseFrames = (baseFrames * 0.45).round();
+      }
+      _framesToFire = (baseFrames /
+              (_level.ship.fireRateMultiplier *
+                  _playerState.runFireRateMultiplier))
+          .round()
+          .clamp(1, baseFrames);
     }
 
     if (_framesToFire > 0) _framesToFire--;
@@ -179,7 +192,7 @@ class GameDemoNode extends NodeWithSize {
     // Remove offscreen game objects
     for (int i = _level.children.length - 1; i >= 0; i--) {
       Node node = _level.children[i];
-      if (node is GameObject) {
+      if (node is GameObject && node is! Ship) {
         node.removeIfOffscreen(_scroll);
       }
     }
@@ -198,9 +211,7 @@ class GameDemoNode extends NodeWithSize {
         if (node is GameObject &&
             node.canBeDamaged &&
             node.canDamageShip && // Only kill enemies (not power ups)
-            node is! EnemyBoss &&
-            node is! BossLaser &&
-            node is! BossCarrier) {
+            !node.grantsBossBuff) {
           node.addDamage(node.maxDamage);
         }
       }
@@ -249,9 +260,7 @@ class GameDemoNode extends NodeWithSize {
         if (node.collidingWith(_level.ship)) {
           if (_playerState.shieldActive) {
             // Hit, but saved by the shield! Only destroy non-boss enemies
-            if (node is! EnemyBoss &&
-                node is! BossLaser &&
-                node is! BossCarrier) {
+            if (!node.grantsBossBuff) {
               node.destroy();
             }
           } else {
@@ -281,11 +290,12 @@ class GameDemoNode extends NodeWithSize {
   void addLevelChunk(int chunk, double yPos) {
     int level = chunk ~/ chunksPerLevel + _gameState.currentStartingLevel;
     int part = chunk % chunksPerLevel;
+    final displayedLevel = level + 1;
 
     if (_isEventMode) {
       // ⚡ EVENT MODE: Boss Rush — faster and more intense
       if (part == 0) {
-        LevelLabel lbl = LevelLabel(_objectFactory, level + 1);
+        LevelLabel lbl = LevelLabel(_objectFactory, displayedLevel);
         lbl.position = Offset(0.0, yPos + chunkSpacing / 2.0 - 150.0);
         _topLevelReached = level;
         _level.addChild(lbl);
@@ -316,7 +326,7 @@ class GameDemoNode extends NodeWithSize {
     } else {
       // Normal Mode
       if (part == 0) {
-        LevelLabel lbl = LevelLabel(_objectFactory, level + 1);
+        LevelLabel lbl = LevelLabel(_objectFactory, displayedLevel);
         lbl.position = Offset(0.0, yPos + chunkSpacing / 2.0 - 150.0);
         _topLevelReached = level;
         _level.addChild(lbl);
@@ -350,7 +360,13 @@ class GameDemoNode extends NodeWithSize {
           _objectFactory.addEnemyScoutSwarm(level, yPos);
         }
       } else if (part == 8) {
-        _objectFactory.addBossFight(level, yPos);
+        // Every level ends with a mini-boss. Each tenth level upgrades that
+        // encounter to a full boss.
+        if (displayedLevel % 10 == 0) {
+          _objectFactory.addBossFight(displayedLevel, yPos);
+        } else {
+          _objectFactory.addMiniBossFight(displayedLevel, yPos);
+        }
       }
     }
   }
@@ -380,6 +396,22 @@ class GameDemoNode extends NodeWithSize {
       Laser shot1 = HomingLaser(_objectFactory, laserLevel, -80.0);
       shot1.position = _level.ship.position + const Offset(-17.0, -10.0);
       _level.addChild(shot1);
+    } else if (currentWeapon == WeaponType.plasma) {
+      // Phoenix: twin heavy plasma cannons.
+      for (final angle in [-96.0, -84.0]) {
+        final shot = PlasmaLaser(_objectFactory, laserLevel, angle);
+        shot.position =
+            _level.ship.position + Offset(angle < -90.0 ? -14.0 : 14.0, -14.0);
+        _level.addChild(shot);
+      }
+    } else if (currentWeapon == WeaponType.nova) {
+      // Guardian: four broad Nova beams.
+      for (final angle in [-112.0, -97.0, -83.0, -68.0]) {
+        final shot = NovaLaser(_objectFactory, laserLevel, angle);
+        shot.position =
+            _level.ship.position + Offset(angle < -90.0 ? -12.0 : 12.0, -12.0);
+        _level.addChild(shot);
+      }
     } else {
       // Basic Laser
       Laser shot0 = Laser(_objectFactory, laserLevel, -90.0);
@@ -392,13 +424,21 @@ class GameDemoNode extends NodeWithSize {
     }
 
     if (_playerState.sideLaserActive) {
-      Laser shot2 = Laser(_objectFactory, laserLevel, -45.0);
+      Laser shot2 = Laser(_objectFactory, laserLevel, -108.0);
       shot2.position = _level.ship.position + const Offset(17.0, -10.0);
       _level.addChild(shot2);
 
-      Laser shot3 = Laser(_objectFactory, laserLevel, -135.0);
+      Laser shot3 = Laser(_objectFactory, laserLevel, -72.0);
       shot3.position = _level.ship.position + const Offset(-17.0, -10.0);
       _level.addChild(shot3);
+    }
+
+    for (var index = 0; index < _playerState.extraVolleyShots; index++) {
+      final angle = -118.0 +
+          (index * (56.0 / (_playerState.extraVolleyShots - 1).clamp(1, 99)));
+      final shot = Laser(_objectFactory, laserLevel, angle);
+      shot.position = _level.ship.position + const Offset(0.0, -8.0);
+      _level.addChild(shot);
     }
   }
 

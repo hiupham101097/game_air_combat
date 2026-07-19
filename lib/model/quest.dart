@@ -4,6 +4,8 @@ enum QuestType {
   collectCoins,
 }
 
+enum QuestPeriod { daily, weekly }
+
 class DailyQuest {
   final String id;
   final QuestType type;
@@ -12,6 +14,7 @@ class DailyQuest {
   int progress;
   final int coinReward;
   bool isClaimed;
+  final QuestPeriod period;
 
   DailyQuest({
     required this.id,
@@ -21,6 +24,7 @@ class DailyQuest {
     this.progress = 0,
     required this.coinReward,
     this.isClaimed = false,
+    this.period = QuestPeriod.daily,
   });
 
   Map<String, dynamic> toJson() {
@@ -32,6 +36,7 @@ class DailyQuest {
       'progress': progress,
       'coinReward': coinReward,
       'isClaimed': isClaimed,
+      'period': period.index,
     };
   }
 
@@ -44,6 +49,9 @@ class DailyQuest {
       progress: json['progress'],
       coinReward: json['coinReward'],
       isClaimed: json['isClaimed'],
+      period: json['period'] == QuestPeriod.weekly.index
+          ? QuestPeriod.weekly
+          : QuestPeriod.daily,
     );
   }
 }

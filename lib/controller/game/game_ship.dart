@@ -51,9 +51,13 @@ class Ship extends GameObject {
   double get fireRateMultiplier => _fireRateMultiplier;
 
   void applyThrust(Offset joystickValue, double scroll) {
-    Offset oldPos = position;
     Offset target = Offset(joystickValue.dx * 160.0 * _speedMultiplier,
         joystickValue.dy * 220.0 - 250.0 - scroll);
+    applyTarget(target);
+  }
+
+  void applyTarget(Offset target) {
+    Offset oldPos = position;
     double filterFactor = 0.2;
 
     position = Offset(GameMath.filter(oldPos.dx, target.dx, filterFactor),

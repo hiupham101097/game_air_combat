@@ -1,13 +1,14 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 class Flash extends NodeWithSize {
-  Flash(Size size, this.duration) : super(size) {
+  Flash(Size size, double duration)
+      : duration = duration.clamp(0.0, 0.18).toDouble(),
+        super(size) {
     MotionTween fade = MotionTween<double>(
       setter: (a) => _opacity = a,
-      start: 1.0,
+      // Avoid a full-screen white strobe when bosses are defeated repeatedly.
+      start: _maxOpacity,
       end: 0.0,
       duration: duration,
     );
@@ -21,7 +22,8 @@ class Flash extends NodeWithSize {
   }
 
   double duration;
-  double _opacity = 1.0;
+  static const double _maxOpacity = 0.22;
+  double _opacity = _maxOpacity;
   final Paint _cachedPaint = Paint();
 
   @override

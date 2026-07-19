@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:mini__game2/main.dart';
+import 'package:mini__game2/model/quest.dart';
 
 class QuestsScreen extends StatefulWidget {
   const QuestsScreen({Key? key}) : super(key: key);
@@ -9,12 +12,45 @@ class QuestsScreen extends StatefulWidget {
 }
 
 class _QuestsScreenState extends State<QuestsScreen> {
+  Timer? _dailyResetTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (gameState.resetDailyQuestsIfNeeded()) gameState.store();
+    _scheduleDailyReset();
+  }
+
+  void _scheduleDailyReset() {
+    final vietnamNow = DateTime.now().toUtc().add(const Duration(hours: 7));
+    final nextMidnightUtc = DateTime.utc(
+      vietnamNow.year,
+      vietnamNow.month,
+      vietnamNow.day + 1,
+    ).subtract(const Duration(hours: 7));
+    final waitTime = nextMidnightUtc.difference(DateTime.now().toUtc());
+
+    _dailyResetTimer = Timer(waitTime, () {
+      if (!mounted) return;
+      if (gameState.resetDailyQuestsIfNeeded()) gameState.store();
+      setState(() {});
+      _scheduleDailyReset();
+    });
+  }
+
+  @override
+  void dispose() {
+    _dailyResetTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('DAILY QUESTS', style: TextStyle(fontFamily: 'Orbitron')),
+        title: const Text('NHIỆM VỤ HẰNG NGÀY & HẰNG TUẦN',
+            style: TextStyle(fontFamily: 'Orbitron')),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -37,7 +73,8 @@ class _QuestsScreenState extends State<QuestsScreen> {
         itemCount: gameState.dailyQuests.length,
         itemBuilder: (context, index) {
           final quest = gameState.dailyQuests[index];
-          final progressPercent = (quest.progress / quest.target).clamp(0.0, 1.0);
+          final progressPercent =
+              (quest.progress / quest.target).clamp(0.0, 1.0);
           final isCompleted = quest.progress >= quest.target;
 
           return Card(
@@ -48,7 +85,22 @@ class _QuestsScreenState extends State<QuestsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(quest.description, style: const TextStyle(color: Colors.white, fontFamily: 'Orbitron', fontSize: 16)),
+                  Text(
+                    quest.period == QuestPeriod.daily ? 'DAILY' : 'WEEKLY',
+                    style: TextStyle(
+                      color: quest.period == QuestPeriod.daily
+                          ? Colors.lightBlueAccent
+                          : Colors.deepPurpleAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(quest.description,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Orbitron',
+                          fontSize: 16)),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
                     value: progressPercent,
@@ -59,12 +111,17 @@ class _QuestsScreenState extends State<QuestsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('${quest.progress} / ${quest.target}', style: const TextStyle(color: Colors.white70)),
+                      Text('${quest.progress} / ${quest.target}',
+                          style: const TextStyle(color: Colors.white70)),
                       if (quest.isClaimed)
-                        const Text('CLAIMED', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))
+                        const Text('ĐÃ NHẬN',
+                            style: TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold))
                       else if (isCompleted)
                         ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green),
                           onPressed: () {
                             setState(() {
                               quest.isClaimed = true;
@@ -72,10 +129,12 @@ class _QuestsScreenState extends State<QuestsScreen> {
                               gameState.store();
                             });
                           },
-                          child: Text('CLAIM ${quest.coinReward} COINS', style: const TextStyle(color: Colors.white)),
+                          child: Text('NHẬN ${quest.coinReward} XU',
+                              style: const TextStyle(color: Colors.white)),
                         )
                       else
-                        Text('REWARD: ${quest.coinReward} COINS', style: const TextStyle(color: Colors.amber)),
+                        Text('THƯỞNG: ${quest.coinReward} XU',
+                            style: const TextStyle(color: Colors.amber)),
                     ],
                   )
                 ],

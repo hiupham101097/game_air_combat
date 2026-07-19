@@ -18,7 +18,7 @@ class BossLaser extends Obstacle {
     _sprite.scale = 0.28;
     _sprite.colorOverlay = const Color(0x66FF0000); // Reddish tint
     addChild(_sprite);
-    
+
     maxDamage = 50.0 + 25.0 * level;
 
     constraints = <Constraint>[
@@ -47,13 +47,21 @@ class BossLaser extends Obstacle {
   void update(double dt) {
     _stateTimer--;
 
-    if (_state == 0) { // Moving randomly
+    // This boss has no rotation constraint, so explicitly aim its beam at
+    // the ship rather than leaving it on the default right-facing angle.
+    final toShip = f.level.ship.position - position;
+    rotation = degrees(math.atan2(toShip.dy, toShip.dx));
+
+    if (_state == 0) {
+      // Moving randomly
       if (_stateTimer <= 0) {
         _state = 1; // Start charging
         _stateTimer = 60; // 1 second charge
-        _sprite.colorOverlay = const Color.fromARGB(150, 255, 255, 0); // Yellow warning
+        _sprite.colorOverlay =
+            const Color.fromARGB(150, 255, 255, 0); // Yellow warning
       }
-    } else if (_state == 1) { // Charging
+    } else if (_state == 1) {
+      // Charging
       if (_stateTimer % 10 == 0) {
         f.sounds.playEffect("laser");
       }
@@ -62,13 +70,16 @@ class BossLaser extends Obstacle {
         _stateTimer = 40; // Fire for ~0.6 seconds
         _sprite.colorOverlay = const Color(0x66FF0000); // Back to red
       }
-    } else if (_state == 2) { // Firing beam (rapid small lasers)
+    } else if (_state == 2) {
+      // Firing beam (rapid small lasers)
       if (_stateTimer % 2 == 0) {
         f.sounds.playEffect("laser");
-        EnemyLaser laser = EnemyLaser(f, rotation, 12.0, const Color(0xffff0000));
+        // Convert the boss's math angle to EnemyLaser's SpriteWidget angle.
+        EnemyLaser laser =
+            EnemyLaser(f, rotation + 90.0, 12.0, const Color(0xffff0000));
         laser.radius = 15.0; // Big hitbox
         laser.scale = 2.0;
-        
+
         double rad = radians(rotation);
         Offset startOffset = Offset(math.cos(rad) * 30.0, math.sin(rad) * 30.0);
         laser.position = position + startOffset;
@@ -77,9 +88,10 @@ class BossLaser extends Obstacle {
       if (_stateTimer <= 0) {
         _state = 0; // Back to moving
         _stateTimer = 120 + randomInt(60);
-        
+
         // Teleport to a new random position
-        position = Offset(randomSignedDouble() * 120, position.dy + randomSignedDouble() * 60);
+        position = Offset(randomSignedDouble() * 120,
+            position.dy + randomSignedDouble() * 60);
       }
     }
   }
@@ -101,9 +113,10 @@ class BossLaser extends Obstacle {
     screen.addChild(Flash(screen.size, 1.0));
     super.destroy();
 
-    for (int i = 0; i < 25; i++) {
-      Coin coin = Coin(f);
-      Offset pos = Offset(randomSignedDouble() * 160, position.dy + randomSignedDouble() * 160.0);
+    for (int i = 0; i < 10; i++) {
+      Coin coin = Coin(f, value: 10);
+      Offset pos = Offset(randomSignedDouble() * 160,
+          position.dy + randomSignedDouble() * 160.0);
       f.addGameObject(coin, pos);
     }
   }
@@ -119,7 +132,8 @@ class BossLaser extends Obstacle {
   @override
   set damage(double d) {
     super.damage = d;
-    if (_state != 1) { // Don't override charge color
+    if (_state != 1) {
+      // Don't override charge color
       _sprite.motions.stopAll();
       _sprite.motions.run(
         MotionTween<Color>(

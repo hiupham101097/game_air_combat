@@ -46,9 +46,11 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 900),
       vsync: this,
     );
-    _logoScale = CurvedAnimation(parent: _logoController, curve: Curves.elasticOut)
-        .drive(Tween<double>(begin: 0.0, end: 1.0));
-    _logoOpacity = CurvedAnimation(parent: _logoController, curve: const Interval(0.0, 0.5))
+    _logoScale =
+        CurvedAnimation(parent: _logoController, curve: Curves.elasticOut)
+            .drive(Tween<double>(begin: 0.0, end: 1.0));
+    _logoOpacity = CurvedAnimation(
+            parent: _logoController, curve: const Interval(0.0, 0.5))
         .drive(Tween<double>(begin: 0.0, end: 1.0));
 
     // Title slide-in
@@ -145,8 +147,7 @@ class _SplashScreenState extends State<SplashScreen>
                     center: const Alignment(0.0, -0.1),
                     radius: 0.9,
                     colors: [
-                      Color.fromARGB(
-                          (30 + _glowController.value * 20).toInt(),
+                      Color.fromARGB((30 + _glowController.value * 20).toInt(),
                           100, 40, 255),
                       Colors.transparent,
                     ],
@@ -197,20 +198,29 @@ class _SplashScreenState extends State<SplashScreen>
                           BoxShadow(
                             color: Color.fromARGB(
                                 (120 + _glowController.value * 80).toInt(),
-                                100, 50, 255),
+                                100,
+                                50,
+                                255),
                             blurRadius: 40 + _glowController.value * 20,
                             spreadRadius: 10,
                           ),
                           BoxShadow(
                             color: Color.fromARGB(
                                 (60 + _glowController.value * 40).toInt(),
-                                50, 150, 255),
+                                50,
+                                150,
+                                255),
                             blurRadius: 60,
                             spreadRadius: 5,
                           ),
                         ],
                       ),
-                      child: const _SpaceshipIcon(),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/app_logo.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -348,19 +358,23 @@ class _SplashScreenState extends State<SplashScreen>
 
           // Corner accent dots (decorative)
           Positioned(
-            top: 24, left: 24,
+            top: 24,
+            left: 24,
             child: _CornerDot(glowAnim: _glowController),
           ),
           Positioned(
-            top: 24, right: 24,
+            top: 24,
+            right: 24,
             child: _CornerDot(glowAnim: _glowController),
           ),
           Positioned(
-            bottom: 24, left: 24,
+            bottom: 24,
+            left: 24,
             child: _CornerDot(glowAnim: _glowController),
           ),
           Positioned(
-            bottom: 24, right: 24,
+            bottom: 24,
+            right: 24,
             child: _CornerDot(glowAnim: _glowController),
           ),
         ],
@@ -402,7 +416,9 @@ class _StarFieldPainter extends CustomPainter {
       final paint = Paint()
         ..color = Color.fromARGB(
           (alpha * 220).toInt().clamp(0, 255),
-          200, 210, 255,
+          200,
+          210,
+          255,
         )
         ..maskFilter = star.size > 1.5
             ? MaskFilter.blur(BlurStyle.normal, star.size * 0.8)
@@ -421,88 +437,6 @@ class _StarFieldPainter extends CustomPainter {
 }
 
 // ─── Spaceship icon drawn with Canvas ────────────────────────────────────────
-
-class _SpaceshipIcon extends StatelessWidget {
-  const _SpaceshipIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _ShipPainter(),
-      size: const Size(120, 120),
-    );
-  }
-}
-
-class _ShipPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-
-    // Outer glow ring
-    canvas.drawCircle(
-      Offset(cx, cy),
-      52,
-      Paint()
-        ..color = const Color(0x228060FF)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16),
-    );
-
-    // Main body
-    final bodyPath = Path()
-      ..moveTo(cx, cy - 44)
-      ..lineTo(cx + 18, cy + 10)
-      ..lineTo(cx + 28, cy + 36)
-      ..lineTo(cx, cy + 22)
-      ..lineTo(cx - 28, cy + 36)
-      ..lineTo(cx - 18, cy + 10)
-      ..close();
-
-    canvas.drawPath(
-      bodyPath,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFD0B0FF), Color(0xFF6030CC)],
-        ).createShader(Rect.fromLTWH(cx - 28, cy - 44, 56, 80)),
-    );
-
-    // Cockpit
-    canvas.drawOval(
-      Rect.fromCenter(center: Offset(cx, cy - 12), width: 18, height: 26),
-      Paint()
-        ..shader = const RadialGradient(
-          colors: [Color(0xFFAADDFF), Color(0xFF3060AA)],
-        ).createShader(Rect.fromCenter(
-            center: Offset(cx, cy - 12), width: 18, height: 26)),
-    );
-
-    // Engine glow
-    canvas.drawOval(
-      Rect.fromCenter(center: Offset(cx, cy + 30), width: 20, height: 10),
-      Paint()
-        ..color = const Color(0x99FF8040)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-    );
-    canvas.drawOval(
-      Rect.fromCenter(center: Offset(cx, cy + 30), width: 10, height: 5),
-      Paint()..color = const Color(0xFFFFCC80),
-    );
-
-    // Wing accent lines
-    final linePaint = Paint()
-      ..color = const Color(0xAA9070FF)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(cx + 8, cy - 10), Offset(cx + 24, cy + 28), linePaint);
-    canvas.drawLine(Offset(cx - 8, cy - 10), Offset(cx - 24, cy + 28), linePaint);
-  }
-
-  @override
-  bool shouldRepaint(_ShipPainter old) => false;
-}
 
 // ─── Corner decorative element ────────────────────────────────────────────────
 

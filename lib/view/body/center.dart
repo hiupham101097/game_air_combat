@@ -51,16 +51,16 @@ class CenterArea extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildMenuButton(context, 'INVENTORY', '/inventory', Colors.blue),
-            _buildMenuButton(context, 'QUESTS', '/quests', Colors.orange),
-            _buildMenuButton(context, 'RANK', '/leaderboard', Colors.purple),
+            _buildMenuButton(context, 'KHO ĐỒ', '/inventory', Colors.blue),
+            _buildMenuButton(context, 'NHIỆM VỤ', '/quests', Colors.orange),
+            _buildMenuButton(context, 'XẾP HẠNG', '/leaderboard', Colors.purple),
           ],
         ),
         const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildMenuButton(context, 'ACCOUNT', '/account', Colors.green),
+            _buildMenuButton(context, 'TÀI KHOẢN', '/account', Colors.green),
           ],
         )
       ],
@@ -106,7 +106,7 @@ class CenterArea extends StatelessWidget {
           ),
           Padding(
               padding: const EdgeInsets.all(3.0),
-              child: Text("Lvl ${gameState.powerupLevel(type) + 1}",
+              child: Text("Cấp ${gameState.powerupLevel(type) + 1}",
                   style: const TextStyle(fontSize: 10.0)))
         ],
       ),

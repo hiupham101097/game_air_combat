@@ -14,6 +14,12 @@ abstract class GameObject extends Node {
   bool canDamageShip = true;
   bool canBeDamaged = true;
   bool canBeCollected = false;
+  // Only bosses opt into this. It keeps run-strength buffs tied strictly to
+  // defeating a boss rather than normal enemy kills or XP milestones.
+  bool grantsBossBuff = false;
+  // Leave this null for the normal health-based score calculation. Enemies
+  // with a fixed reward (bosses and elite enemies) set a specific value.
+  int? scoreReward;
   double maxDamage = 3000.0;
   // Accumulated damage received. Starting at zero is essential for maxDamage
   // to represent actual health rather than every target dying on the first hit.
@@ -34,6 +40,9 @@ abstract class GameObject extends Node {
   void move() {}
 
   void removeIfOffscreen(double scroll) {
+    // The active boss is the level gate. It must remain in the scene until
+    // the player defeats it, never disappear because of scroll cleanup.
+    if (f.playerState.boss == this) return;
     if (-position.dy > scroll + removeLimit || -position.dy < scroll - 50.0) {
       removeFromParent();
     }
@@ -41,6 +50,11 @@ abstract class GameObject extends Node {
 
   void destroy() {
     if (parent != null) {
+      // Mini-bosses and full bosses both register here. Clearing the active
+      // encounter lets the level resume after either one is defeated.
+      if (f.playerState.boss == this) {
+        f.playerState.boss = null;
+      }
       Explosion? explo = createExplosion();
       if (explo != null) {
         explo.position = position;
@@ -66,8 +80,12 @@ abstract class GameObject extends Node {
     damage += d;
     if (damage >= maxDamage) {
       destroy();
-      f.playerState.score += (maxDamage * 10).ceil();
+      f.playerState.score += scoreReward ?? (maxDamage * 10).ceil();
       f.playerState.enemyKilled();
+      f.playerState.gainExperience((maxDamage / 10).ceil().clamp(1, 50));
+      if (grantsBossBuff) {
+        f.playerState.offerBossBuffChoices();
+      }
     } else {
       f.sounds.playEffect("hit");
     }
@@ -115,5 +133,17 @@ class Collectable extends GameObject {
     canBeCollected = true;
 
     zPosition = 20.0;
+  }
+
+  @override
+  void move() {
+    // The level stops scrolling while a boss is on screen. Collectables used
+    // to rely entirely on that scroll, so coins and power-ups froze in place.
+    // Offset the lost scroll here so their on-screen falling speed is stable.
+    if (f.playerState.boss != null) {
+      const normalScrollSpeed = 2.0;
+      final lostScroll = normalScrollSpeed - f.playerState.scrollSpeed;
+      if (lostScroll > 0) position += Offset(0.0, lostScroll);
+    }
   }
 }

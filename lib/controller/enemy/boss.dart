@@ -7,9 +7,6 @@ import 'package:mini__game2/model/custom_actions.dart';
 import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/flash.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
-import 'package:mini__game2/controller/game/game_objects.dart';
-import 'package:mini__game2/model/weapon.dart';
-import 'package:mini__game2/controller/game/weapon_pickup.dart';
 import 'package:mini__game2/controller/power/power_bar.dart';
 import 'package:spritewidget/spritewidget.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -73,7 +70,9 @@ class EnemyBoss extends Obstacle {
 
   void fire(double r) {
     r += rotation;
-    EnemyLaser laser = EnemyLaser(f, r, 5.0, const Color(0xffffe38e));
+    // EnemyLaser uses SpriteWidget angles (0° = up), while boss rotation
+    // and the spawn offset use math angles (0° = right).
+    EnemyLaser laser = EnemyLaser(f, r + 90.0, 5.0, const Color(0xffffe38e));
 
     double rad = radians(r);
     Offset startOffset = Offset(math.cos(rad) * 30.0, math.sin(rad) * 30.0);
@@ -100,13 +99,9 @@ class EnemyBoss extends Obstacle {
     screen.addChild(Flash(screen.size, 1.0));
     super.destroy();
 
-    // Add a weapon pickup guaranteed from boss
-    WeaponPickup weapon = WeaponPickup(f, WeaponType.values[randomInt(WeaponType.values.length)]);
-    f.addGameObject(weapon, position);
-
     // Add coins
-    for (int i = 0; i < 20; i++) {
-      Coin coin = Coin(f);
+    for (int i = 0; i < 10; i++) {
+      Coin coin = Coin(f, value: 10);
       Offset pos = Offset(randomSignedDouble() * 160,
           position.dy + randomSignedDouble() * 160.0);
       f.addGameObject(coin, pos);

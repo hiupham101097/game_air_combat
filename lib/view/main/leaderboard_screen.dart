@@ -17,7 +17,7 @@ class LeaderboardScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('LEADERBOARD', style: TextStyle(fontFamily: 'Orbitron')),
+        title: const Text('BẢNG XẾP HẠNG', style: TextStyle(fontFamily: 'Orbitron')),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),

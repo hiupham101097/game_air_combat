@@ -25,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đăng nhập thất bại: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -43,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Registration failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đăng ký thất bại: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -106,18 +106,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     ElevatedButton(
                       onPressed: _signIn,
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-                      child: const Text('Login'),
+                      child: const Text('ĐĂNG NHẬP'),
                     ),
                     ElevatedButton(
                       onPressed: _register,
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                      child: const Text('Register'),
+                      child: const Text('ĐĂNG KÝ'),
                     ),
                   ],
                 ),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                child: const Text('HỦY', style: TextStyle(color: Colors.white70)),
               )
             ],
           ),

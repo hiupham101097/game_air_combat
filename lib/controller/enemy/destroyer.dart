@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
@@ -10,6 +11,7 @@ import 'package:mini__game2/controller/power/power_upda_type.dart';
 import 'package:mini__game2/model/weapon.dart';
 import 'package:mini__game2/controller/game/weapon_pickup.dart';
 import 'package:spritewidget/spritewidget.dart';
+import 'package:vector_math/vector_math_64.dart';
 
 class EnemyDestroyer extends Obstacle {
   EnemyDestroyer(GameObjectFactory f, int level, [this.threatLevel = 0])
@@ -51,11 +53,11 @@ class EnemyDestroyer extends Obstacle {
   Collectable? createPowerUp() {
     double rand = randomDouble();
     if (rand < 0.05) {
-      // 5% chance to drop a weapon
+      // Ammo is a temporary in-run buff; it never changes the fighter's
+      // ship-bound firing pattern.
       return WeaponPickup(
           f, WeaponType.values[randomInt(WeaponType.values.length)]);
     } else if (rand < 0.15) {
-      // 10% chance to drop a powerup
       return PowerUp(f, nextPowerUpType());
     }
     return Coin(f);
@@ -68,8 +70,12 @@ class EnemyDestroyer extends Obstacle {
       // Shoot at player
       f.sounds.playEffect("laser");
 
+      // Calculate the direction from positions instead of reusing the sprite
+      // rotation. SpriteWidget and math rotations use different zero points.
+      final toShip = f.level.ship.position - position;
+      final aimAngle = degrees(math.atan2(toShip.dy, toShip.dx));
       EnemyLaser laser = EnemyLaser(
-          f, rotation, 5.0 + threatLevel * 0.7, const Color(0xffffe38e));
+          f, aimAngle + 90.0, 5.0 + threatLevel * 0.7, const Color(0xffffe38e));
       laser.position = position;
       f.level.addChild(laser);
 

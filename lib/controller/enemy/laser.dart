@@ -6,19 +6,26 @@ import 'package:spritewidget/spritewidget.dart';
 import 'package:vector_math/vector_math_64.dart';
 
 class EnemyLaser extends Obstacle {
-  EnemyLaser(GameObjectFactory f, double rotation, double speed, Color color)
+  /// [spriteRotation] uses SpriteWidget's orientation: 0° points up.
+  /// Convert a normal math angle (0° points right) with `angle + 90`.
+  EnemyLaser(
+      GameObjectFactory f, double spriteRotation, double speed, Color color,
+      {bool highVisibility = false})
       : super(f) {
     _sprite = Sprite(texture: f.sheet["explosion_particle.png"]!);
-    _sprite.scale = 0.5;
-    _sprite.rotation = rotation + 190;
+    _sprite.scale = highVisibility ? 0.78 : 0.5;
+    _sprite.rotation = spriteRotation + 190;
     _sprite.colorOverlay = color;
     addChild(_sprite);
 
+    // Projectiles need an actual hitbox; a zero radius made them require a
+    // near-perfect centre overlap with the ship and appear harmless.
+    radius = 8.0;
     canDamageShip = true;
     canBeDamaged = false;
 
     // Convert SpriteWidget rotation (0 = UP) to Math angle (0 = RIGHT)
-    double rad = radians(rotation - 90.0);
+    double rad = radians(spriteRotation - 90.0);
     _movement = Offset(math.cos(rad) * speed, math.sin(rad) * speed);
   }
 
@@ -30,6 +37,3 @@ class EnemyLaser extends Obstacle {
     position += _movement;
   }
 }
-
-
-

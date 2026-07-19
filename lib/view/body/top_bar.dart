@@ -52,12 +52,15 @@ class TopBar extends StatelessWidget {
         Positioned(
           left: 36.0,
           top: 82.5,
-          child: Text(
-            "${gameState.coins}",
-            style: const TextStyle(
-              fontSize: 16.0,
-              fontWeight: FontWeight.w500,
-              color: darkTextColor,
+          child: ValueListenableBuilder<int>(
+            valueListenable: gameState.coinsNotifier,
+            builder: (context, coins, _) => Text(
+              '$coins',
+              style: const TextStyle(
+                fontSize: 16.0,
+                fontWeight: FontWeight.w500,
+                color: darkTextColor,
+              ),
             ),
           ),
         ),

@@ -1,6 +1,6 @@
-
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/game/game_demo_node.dart';
+import 'package:mini__game2/controller/player_state.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
 import 'package:mini__game2/main.dart';
 import 'package:spritewidget/spritewidget.dart';
@@ -24,6 +24,7 @@ class GameScene extends StatefulWidget {
 class GameSceneState extends State<GameScene> {
   late GameDemoNode _game;
   bool _isPaused = false;
+  List<BossBuffReward>? _bossBuffChoices;
 
   @override
   void initState() {
@@ -45,7 +46,21 @@ class GameSceneState extends State<GameScene> {
         widget.onGameOver!(score, coins, levelReached);
         sounds.playMusic('music_intro');
       },
+      onBossBuff: (choices) {
+        if (!mounted) return;
+        _game.pause();
+        setState(() => _bossBuffChoices = choices);
+      },
     );
+  }
+
+  void _chooseBossBuff(BossBuffReward reward) {
+    // A double tap can arrive before Flutter removes the choice panel.
+    // Accept only the first selection and resume the game once.
+    if (_bossBuffChoices == null) return;
+    _game.chooseBossBuff(reward);
+    setState(() => _bossBuffChoices = null);
+    if (!_isPaused) _game.resume();
   }
 
   void _togglePause() {
@@ -110,11 +125,13 @@ class GameSceneState extends State<GameScene> {
             child: Center(
               child: Container(
                 width: 260,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0d0d2b),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.cyanAccent.withAlpha(100), width: 1.5),
+                  border: Border.all(
+                      color: Colors.cyanAccent.withAlpha(100), width: 1.5),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.cyanAccent.withAlpha(30),
@@ -172,7 +189,8 @@ class GameSceneState extends State<GameScene> {
                                     fontSize: 16)),
                             content: const Text(
                               'Trận đấu sẽ bị kết thúc và điểm sẽ không được lưu.',
-                              style: TextStyle(color: Colors.white60, fontSize: 13),
+                              style: TextStyle(
+                                  color: Colors.white60, fontSize: 13),
                             ),
                             actions: [
                               TextButton(
@@ -202,7 +220,91 @@ class GameSceneState extends State<GameScene> {
               ),
             ),
           ),
+        if (_bossBuffChoices != null)
+          Positioned.fill(
+            child: _BossBuffPanel(
+              choices: _bossBuffChoices!,
+              onSelected: _chooseBossBuff,
+            ),
+          ),
       ],
+    );
+  }
+}
+
+class _BossBuffPanel extends StatelessWidget {
+  const _BossBuffPanel({required this.choices, required this.onSelected});
+
+  final List<BossBuffReward> choices;
+  final ValueChanged<BossBuffReward> onSelected;
+
+  Color _colorFor(BossBuffReward reward) => switch (reward.type) {
+        BossBuffType.green => const Color(0xFF55E88B),
+        BossBuffType.purple => const Color(0xFFC77DFF),
+        BossBuffType.gold => const Color(0xFFFFD54F),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black.withAlpha(185),
+      alignment: Alignment.center,
+      child: Container(
+        width: 300,
+        margin: const EdgeInsets.symmetric(horizontal: 28),
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
+        decoration: BoxDecoration(
+          color: const Color(0xEE0D0D2B),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.cyanAccent, width: 2),
+          boxShadow: [
+            BoxShadow(color: Colors.cyanAccent.withAlpha(90), blurRadius: 28)
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('BOSS ĐÃ BỊ TIÊU DIỆT',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'Orbitron',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.1)),
+            const SizedBox(height: 10),
+            const Text('Chọn một buff',
+                style: TextStyle(color: Colors.white70, fontSize: 14)),
+            const SizedBox(height: 16),
+            ...choices.map((reward) {
+              final color = _colorFor(reward);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => onSelected(reward),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color.withAlpha(35),
+                      foregroundColor: color,
+                      side: BorderSide(color: color),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Column(children: [
+                      Text(reward.vietnameseLabel,
+                          style: const TextStyle(
+                              fontFamily: 'Orbitron',
+                              fontWeight: FontWeight.bold)),
+                      Text(reward.vietnameseDescription,
+                          style: const TextStyle(color: Colors.white)),
+                    ]),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
     );
   }
 }

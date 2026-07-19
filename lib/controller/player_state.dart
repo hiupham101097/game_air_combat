@@ -8,9 +8,42 @@ import 'package:mini__game2/main.dart';
 import 'package:mini__game2/model/quest.dart';
 import 'package:mini__game2/model/weapon.dart';
 import 'package:mini__game2/model/equipment.dart';
+import 'package:mini__game2/model/ship_model.dart';
 import 'package:spritewidget/spritewidget.dart';
 
+/// A permanent, run-only strength reward earned for defeating a boss.
+enum BossBuffType { green, purple, gold }
 
+class BossBuffReward {
+  const BossBuffReward(this.type, this.percent);
+
+  final BossBuffType type;
+  final int percent;
+
+  String get label => switch (type) {
+        BossBuffType.green => 'BUFF XANH',
+        BossBuffType.purple => 'BUFF TÍM',
+        BossBuffType.gold => 'BUFF VÀNG HIẾM',
+      };
+
+  String get description => switch (type) {
+        BossBuffType.green => '+$percent% sát thương vũ khí',
+        BossBuffType.purple => '+$percent% tốc độ bắn',
+        BossBuffType.gold => '+$percent% sát thương vũ khí',
+      };
+
+  String get vietnameseLabel => switch (type) {
+        BossBuffType.green => 'BUFF XANH',
+        BossBuffType.purple => 'BUFF TÍM',
+        BossBuffType.gold => 'BUFF VÀNG HIẾM',
+      };
+
+  String get vietnameseDescription => switch (type) {
+        BossBuffType.green => '+$percent% sát thương vũ khí',
+        BossBuffType.purple => '+$percent% tốc độ bắn',
+        BossBuffType.gold => '+$percent% sát thương vũ khí',
+      };
+}
 
 class PlayerState extends Node {
   PlayerState(this._sheetUI, this._sheetGame, this._gameState) {
@@ -43,10 +76,9 @@ class PlayerState extends Node {
 
     laserLevel = _gameState.laserLevel;
 
-    // Fix: WeaponConfig.weapons keys are WeaponType, not int.
-    // Use WeaponType.values[index] to get the correct enum then look up.
-    int weaponIdx = _gameState.equippedWeapon.clamp(0, WeaponType.values.length - 1);
-    currentWeapon = WeaponType.values[weaponIdx];
+    // Each fighter owns a fixed primary weapon. Pickups no longer replace it,
+    // so choosing a ship always changes both the firing pattern and projectile.
+    currentWeapon = equippedShip.weapon;
 
     _calculateEquipmentStats();
   }
@@ -57,7 +89,7 @@ class PlayerState extends Node {
     int bonusHp = 0;
     double bonusDamage = 0.0;
     double bonusSpeed = 0.0;
-    
+
     _gameState.equippedLoadout.forEach((slot, id) {
       EquipmentItem? item = EquipmentItem.getById(id);
       if (item != null) {
@@ -76,7 +108,7 @@ class PlayerState extends Node {
     hp = maxHp; // Start with full HP
     damageMultiplier = 1.0 + bonusDamage;
     speedMultiplier = 1.0 + bonusSpeed;
-    
+
     // Adjust scroll speed with engine speed multiplier
     scrollSpeed = normalScrollSpeed * speedMultiplier;
   }
@@ -87,11 +119,32 @@ class PlayerState extends Node {
 
   int laserLevel = 0;
   late WeaponType currentWeapon;
+  Color projectileColor = Colors.white;
+  int _ammoBuffFrames = 0;
+  double ammoDamageMultiplier = 1.0;
+
+  bool get hasProjectileColor => projectileColor != Colors.white;
+
+  Ship get equippedShip => ShipConfig
+      .ships[_gameState.equippedShip.clamp(0, ShipConfig.ships.length - 1)];
 
   void changeWeapon(WeaponType type) {
-    currentWeapon = type;
-    // Maybe show a flash or effect later
+    // The ship keeps its own firing pattern. Ammo drops are a temporary
+    // combat buff: +15% damage for 10 seconds, refreshing on every pickup.
+    _ammoBuffFrames = 600;
+    ammoDamageMultiplier = 1.15;
+    projectileColor = switch (type) {
+      WeaponType.spread => const Color(0xFFFFD54F),
+      WeaponType.homing => const Color(0xFF29B6F6),
+      WeaponType.piercing || WeaponType.nova => const Color(0xFFC77DFF),
+      WeaponType.rapid => const Color(0xFF69F0AE),
+      WeaponType.plasma => const Color(0xFFFF8A65),
+      WeaponType.basic => Colors.white,
+    };
   }
+
+  double get weaponDamageMultiplier =>
+      WeaponConfig.weapons[currentWeapon]?.damageMultiplier ?? 1.0;
 
   static const double normalScrollSpeed = 2.0;
 
@@ -119,6 +172,7 @@ class PlayerState extends Node {
   }
 
   int get coins => _coinDisplay.score;
+  int coinMultiplier = 1;
 
   void addCoin(Coin c) {
     // Animate coin to the top of the screen
@@ -130,7 +184,8 @@ class PlayerState extends Node {
     List<Offset> path = <Offset>[startPos, middlePos, finalPos];
 
     Sprite sprite = Sprite(texture: _sheetGame["coin.png"]!);
-    sprite.scale = 0.7;
+    sprite.scale = c.displayScale;
+    sprite.colorOverlay = c.color;
 
     MotionSpline spline = MotionSpline(
       setter: (Offset a) => sprite.position = a,
@@ -146,8 +201,8 @@ class PlayerState extends Node {
     );
     MotionTween scale = MotionTween<double>(
       setter: (a) => sprite.scale = a,
-      start: 0.7,
-      end: 1.2,
+      start: c.displayScale,
+      end: c.displayScale + 0.5,
       duration: 0.5,
     );
     MotionGroup group = MotionGroup(motions: [spline, rotate, scale]);
@@ -158,7 +213,7 @@ class PlayerState extends Node {
           MotionRemoveNode(node: sprite),
           MotionCallFunction(
             callback: () {
-              _coinDisplay.score += 1;
+              _coinDisplay.score += c.value * coinMultiplier;
               flashBackgroundSprite(_spriteBackgroundCoins);
             },
           ),
@@ -195,13 +250,57 @@ class PlayerState extends Node {
   double speedMultiplier = 1.0;
   EquipmentItem? droneEquipment;
 
+  int runLevel = 1;
+  int experience = 0;
+  int experienceToNextLevel = 30;
+  double runFireRateMultiplier = 1.0;
+  int extraVolleyShots = 0;
+  void Function(List<BossBuffReward> choices)? onBossBuff;
+
+  void gainExperience(int amount) {
+    // Experience remains available for score/progression display, but it no
+    // longer grants combat upgrades. Boss defeats are the sole buff source.
+    if (amount <= 0) return;
+    experience += amount;
+  }
+
+  /// Rolls the boss-only power reward. Green and purple are the normal
+  /// rewards (2–5%); gold has a 10% chance and always grants 8% damage.
+  void offerBossBuffChoices() {
+    final random = math.Random();
+    final choices = List<BossBuffReward>.generate(3, (_) {
+      if (random.nextInt(100) < 10) {
+        return const BossBuffReward(BossBuffType.gold, 8);
+      }
+      final percent = 2 + random.nextInt(4);
+      return random.nextBool()
+          ? BossBuffReward(BossBuffType.green, percent)
+          : BossBuffReward(BossBuffType.purple, percent);
+    });
+    onBossBuff?.call(choices);
+  }
+
+  void applyBossBuff(BossBuffReward reward) {
+    switch (reward.type) {
+      case BossBuffType.green:
+      case BossBuffType.gold:
+        final multiplier = 1 + reward.percent / 100;
+        damageMultiplier *= multiplier;
+        break;
+      case BossBuffType.purple:
+        runFireRateMultiplier *= 1 + reward.percent / 100;
+        break;
+    }
+  }
+
   bool activateNuke = false;
 
   int _magnetFrames = 0;
   bool get magnetActive => _magnetFrames > 0;
 
   int _shieldFrames = 0;
-  bool get shieldActive => _shieldFrames > 0 || _speedBoostFrames > 0 || hpInvincibilityFrames > 0;
+  bool get shieldActive =>
+      _shieldFrames > 0 || _speedBoostFrames > 0 || hpInvincibilityFrames > 0;
   bool get shieldDeactivating =>
       math.max(_shieldFrames, _speedBoostFrames) > 0 &&
       math.max(_shieldFrames, _speedBoostFrames) < 60;
@@ -242,13 +341,20 @@ class PlayerState extends Node {
     if (_speedBoostFrames > 0) {
       _speedBoostFrames--;
     }
+    if (_ammoBuffFrames > 0) {
+      _ammoBuffFrames--;
+      if (_ammoBuffFrames == 0) {
+        ammoDamageMultiplier = 1.0;
+        projectileColor = Colors.white;
+      }
+    }
     if (_magnetFrames > 0) {
       _magnetFrames--;
     }
     if (hpInvincibilityFrames > 0) {
       hpInvincibilityFrames--;
     }
-    
+
     _hpDisplay.hp = hp; // Sync HP display
 
     // Update speed
@@ -331,7 +437,8 @@ class HpDisplay extends Node {
       for (int i = 0; i < _hp; i++) {
         // We'll use a powerup shield icon as a makeshift heart/health icon since we don't have hearts
         Sprite hpSprite = Sprite(texture: _sheetUI["powerup_0.png"]!);
-        hpSprite.colorOverlay = const Color.fromARGB(255, 255, 50, 50); // Red tint
+        hpSprite.colorOverlay =
+            const Color.fromARGB(255, 255, 50, 50); // Red tint
         hpSprite.scale = 0.3;
         hpSprite.position = Offset(xPos, 0.0);
         addChild(hpSprite);

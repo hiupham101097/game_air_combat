@@ -38,15 +38,15 @@ class EquipmentItem {
 
   // Stat calculations based on level
   double getDamageMultiplier(int level) =>
-      damageMultiplier + (damageMultiplier * 0.1 * (level - 1));
-  int getHpBonus(int level) => hpBonus + ((hpBonus > 0 ? 1 : 0) * (level - 1));
+      damageMultiplier + (damageMultiplier * 0.2 * (level - 1));
+  int getHpBonus(int level) => hpBonus + ((hpBonus > 0 ? 2 : 0) * (level - 1));
   double getSpeedMultiplier(int level) =>
-      speedMultiplier + (speedMultiplier * 0.05 * (level - 1));
+      speedMultiplier + (speedMultiplier * 0.1 * (level - 1));
 
   double getDroneFireRate(int level) =>
       droneFireRate; // Keep fire rate constant, scale damage instead
   double getDroneDamage(int level) =>
-      droneDamage + (droneDamage * 0.2 * (level - 1));
+      droneDamage + (droneDamage * 0.3 * (level - 1));
 
   // Upgrade cost calculation
   int getUpgradeStoneCost(int currentLevel) => currentLevel * 10;

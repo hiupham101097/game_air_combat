@@ -16,7 +16,7 @@ import 'package:vector_math/vector_math_64.dart' hide Colors;
 class BossNova extends Obstacle {
   BossNova(GameObjectFactory f, int level) : super(f) {
     radius = 52.0;
-    _sprite = Sprite.fromImage(imageMap['assets/boss_nova.png']!);
+    _sprite = Sprite.fromImage(imageMap['assets/boss_nova_clean.png']!);
     _sprite.scale = 0.12;
     addChild(_sprite);
     maxDamage = 80.0 + 35.0 * level;
@@ -25,7 +25,8 @@ class BossNova extends Obstacle {
     _powerBar.pivot = const Offset(0.5, 0.5);
     f.level.addChild(_powerBar);
     _powerBar.constraints = <Constraint>[
-      ConstraintPositionToNode(targetNode: this, dampening: 0.5, offset: const Offset(0.0, -90.0))
+      ConstraintPositionToNode(
+          targetNode: this, dampening: 0.5, offset: const Offset(0.0, -90.0))
     ];
   }
 
@@ -37,9 +38,11 @@ class BossNova extends Obstacle {
 
   @override
   void setupActions() {
-    ActionOscillate osc = ActionOscillate((Offset a) => position = a, position, 60.0, 5.0);
+    ActionOscillate osc =
+        ActionOscillate((Offset a) => position = a, position, 60.0, 5.0);
     motions.run(MotionRepeatForever(motion: osc));
-    MotionTween spin = MotionTween<double>(setter: (a) => _sprite.rotation = a, start: 0, end: 360, duration: 3.0);
+    MotionTween spin = MotionTween<double>(
+        setter: (a) => _sprite.rotation = a, start: 0, end: 360, duration: 3.0);
     _sprite.motions.run(MotionRepeatForever(motion: spin));
   }
 
@@ -52,9 +55,11 @@ class BossNova extends Obstacle {
       int numShots = 8 + (_burstCount % 3) * 4;
       for (int i = 0; i < numShots; i++) {
         double angle = _angle + (360.0 / numShots) * i;
-        EnemyLaser laser = EnemyLaser(f, angle + 90.0, 4.0, const Color(0xFFFFDD44));
+        EnemyLaser laser =
+            EnemyLaser(f, angle + 90.0, 4.0, const Color(0xFFFFDD44));
         double rad = radians(angle);
-        laser.position = position + Offset(math.cos(rad) * 40, math.sin(rad) * 40);
+        laser.position =
+            position + Offset(math.cos(rad) * 40, math.sin(rad) * 40);
         f.level.addChild(laser);
       }
       _angle += 15; // Rotate pattern each burst
@@ -70,9 +75,12 @@ class BossNova extends Obstacle {
     NodeWithSize screen = f.playerState.parent as NodeWithSize;
     screen.addChild(Flash(screen.size, 1.5));
     super.destroy();
-    for (int i = 0; i < 35; i++) {
-      Coin coin = Coin(f);
-      f.addGameObject(coin, Offset(randomSignedDouble() * 160, position.dy + randomSignedDouble() * 180));
+    for (int i = 0; i < 10; i++) {
+      Coin coin = Coin(f, value: 10);
+      f.addGameObject(
+          coin,
+          Offset(randomSignedDouble() * 160,
+              position.dy + randomSignedDouble() * 180));
     }
   }
 
@@ -88,7 +96,11 @@ class BossNova extends Obstacle {
   set damage(double d) {
     super.damage = d;
     _sprite.motions.stopAll();
-    _sprite.motions.run(MotionTween<Color>(setter: (a) => _sprite.colorOverlay = a, start: const Color.fromARGB(200, 255, 255, 0), end: Colors.transparent, duration: 0.3));
+    _sprite.motions.run(MotionTween<Color>(
+        setter: (a) => _sprite.colorOverlay = a,
+        start: const Color.fromARGB(200, 255, 255, 0),
+        end: Colors.transparent,
+        duration: 0.3));
     _powerBar.power = (1.0 - damage / maxDamage).clamp(0.0, 1.0);
   }
 }
@@ -97,7 +109,7 @@ class BossNova extends Obstacle {
 class BossPhantom extends Obstacle {
   BossPhantom(GameObjectFactory f, int level) : super(f) {
     radius = 38.0;
-    _sprite = Sprite.fromImage(imageMap['assets/boss_phantom.png']!);
+    _sprite = Sprite.fromImage(imageMap['assets/boss_phantom_clean.png']!);
     _sprite.scale = 0.10;
     addChild(_sprite);
     maxDamage = 60.0 + 28.0 * level;
@@ -106,7 +118,8 @@ class BossPhantom extends Obstacle {
     _powerBar.pivot = const Offset(0.5, 0.5);
     f.level.addChild(_powerBar);
     _powerBar.constraints = <Constraint>[
-      ConstraintPositionToNode(targetNode: this, dampening: 0.5, offset: const Offset(0.0, -75.0))
+      ConstraintPositionToNode(
+          targetNode: this, dampening: 0.5, offset: const Offset(0.0, -75.0))
     ];
   }
 
@@ -118,7 +131,8 @@ class BossPhantom extends Obstacle {
 
   @override
   void setupActions() {
-    ActionOscillate osc = ActionOscillate((Offset a) => position = a, position, 140.0, 2.5);
+    ActionOscillate osc =
+        ActionOscillate((Offset a) => position = a, position, 140.0, 2.5);
     motions.run(MotionRepeatForever(motion: osc));
   }
 
@@ -130,7 +144,11 @@ class BossPhantom extends Obstacle {
       // Start cloaking
       _state = 1;
       _stateTimer = 30;
-      _sprite.motions.run(MotionTween<double>(setter: (a) => _sprite.opacity = a, start: 1.0, end: 0.0, duration: 0.5));
+      _sprite.motions.run(MotionTween<double>(
+          setter: (a) => _sprite.opacity = a,
+          start: 1.0,
+          end: 0.0,
+          duration: 0.5));
     } else if (_state == 1 && _stateTimer <= 0) {
       // Fully cloaked — fire triple burst
       _state = 2;
@@ -144,7 +162,11 @@ class BossPhantom extends Obstacle {
       _stateTimer = 180;
       _cloaked = false;
       canBeDamaged = true;
-      _sprite.motions.run(MotionTween<double>(setter: (a) => _sprite.opacity = a, start: 0.0, end: 1.0, duration: 0.5));
+      _sprite.motions.run(MotionTween<double>(
+          setter: (a) => _sprite.opacity = a,
+          start: 0.0,
+          end: 1.0,
+          duration: 0.5));
     }
 
     if (_cloaked && _stateTimer % 20 == 0) {
@@ -158,9 +180,10 @@ class BossPhantom extends Obstacle {
     double angle = degrees(math.atan2(shipDir.dy, shipDir.dx));
     for (double offset in [-15.0, 0.0, 15.0]) {
       double a = angle + offset;
-      EnemyLaser laser = EnemyLaser(f, a + 90.0, 6.0, const Color(0xFFCC44FF));
+      EnemyLaser laser = EnemyLaser(f, a + 90.0, 6.0, const Color(0xFFFF4DFF));
       double rad = radians(a);
-      laser.position = position + Offset(math.cos(rad) * 25, math.sin(rad) * 25);
+      laser.position =
+          position + Offset(math.cos(rad) * 25, math.sin(rad) * 25);
       f.level.addChild(laser);
     }
   }
@@ -174,9 +197,12 @@ class BossPhantom extends Obstacle {
     NodeWithSize screen = f.playerState.parent as NodeWithSize;
     screen.addChild(Flash(screen.size, 1.0));
     super.destroy();
-    for (int i = 0; i < 28; i++) {
-      Coin coin = Coin(f);
-      f.addGameObject(coin, Offset(randomSignedDouble() * 160, position.dy + randomSignedDouble() * 160));
+    for (int i = 0; i < 10; i++) {
+      Coin coin = Coin(f, value: 10);
+      f.addGameObject(
+          coin,
+          Offset(randomSignedDouble() * 160,
+              position.dy + randomSignedDouble() * 160));
     }
   }
 
@@ -193,7 +219,11 @@ class BossPhantom extends Obstacle {
     if (!canBeDamaged) return;
     super.damage = d;
     if (!_cloaked) {
-      _sprite.motions.run(MotionTween<Color>(setter: (a) => _sprite.colorOverlay = a, start: const Color.fromARGB(200, 180, 0, 255), end: Colors.transparent, duration: 0.3));
+      _sprite.motions.run(MotionTween<Color>(
+          setter: (a) => _sprite.colorOverlay = a,
+          start: const Color.fromARGB(200, 180, 0, 255),
+          end: Colors.transparent,
+          duration: 0.3));
     }
     _powerBar.power = (1.0 - damage / maxDamage).clamp(0.0, 1.0);
   }
@@ -203,7 +233,7 @@ class BossPhantom extends Obstacle {
 class BossTitan extends Obstacle {
   BossTitan(GameObjectFactory f, int level) : super(f) {
     radius = 60.0;
-    _sprite = Sprite.fromImage(imageMap['assets/boss_titan.png']!);
+    _sprite = Sprite.fromImage(imageMap['assets/boss_titan_clean.png']!);
     _sprite.scale = 0.14;
     addChild(_sprite);
     maxDamage = 120.0 + 50.0 * level; // Very tanky
@@ -212,7 +242,8 @@ class BossTitan extends Obstacle {
     _powerBar.pivot = const Offset(0.5, 0.5);
     f.level.addChild(_powerBar);
     _powerBar.constraints = <Constraint>[
-      ConstraintPositionToNode(targetNode: this, dampening: 0.5, offset: const Offset(0.0, -100.0))
+      ConstraintPositionToNode(
+          targetNode: this, dampening: 0.5, offset: const Offset(0.0, -100.0))
     ];
   }
 
@@ -224,7 +255,8 @@ class BossTitan extends Obstacle {
   @override
   void setupActions() {
     // Very slow horizontal movement
-    ActionOscillate osc = ActionOscillate((Offset a) => position = a, position, 50.0, 8.0);
+    ActionOscillate osc =
+        ActionOscillate((Offset a) => position = a, position, 50.0, 8.0);
     motions.run(MotionRepeatForever(motion: osc));
   }
 
@@ -240,11 +272,13 @@ class BossTitan extends Obstacle {
       int numShots = _phase;
       for (int i = 0; i < numShots; i++) {
         double spread = (i - numShots / 2) * 8.0;
-        EnemyLaser laser = EnemyLaser(f, angle + spread + 90.0, 18.0, const Color(0xFFFF4400));
+        EnemyLaser laser =
+            EnemyLaser(f, angle + spread + 90.0, 18.0, const Color(0xFFFF4400));
         laser.radius = 25.0;
         laser.scale = 3.0;
         double rad = radians(angle + spread);
-        laser.position = position + Offset(math.cos(rad) * 50, math.sin(rad) * 50);
+        laser.position =
+            position + Offset(math.cos(rad) * 50, math.sin(rad) * 50);
         f.level.addChild(laser);
       }
       _countdown = 240 ~/ _phase;
@@ -258,9 +292,12 @@ class BossTitan extends Obstacle {
     NodeWithSize screen = f.playerState.parent as NodeWithSize;
     screen.addChild(Flash(screen.size, 2.0));
     super.destroy();
-    for (int i = 0; i < 50; i++) {
-      Coin coin = Coin(f);
-      f.addGameObject(coin, Offset(randomSignedDouble() * 160, position.dy + randomSignedDouble() * 200));
+    for (int i = 0; i < 10; i++) {
+      Coin coin = Coin(f, value: 10);
+      f.addGameObject(
+          coin,
+          Offset(randomSignedDouble() * 160,
+              position.dy + randomSignedDouble() * 200));
     }
   }
 
@@ -276,7 +313,11 @@ class BossTitan extends Obstacle {
   set damage(double d) {
     super.damage = d;
     _sprite.motions.stopAll();
-    _sprite.motions.run(MotionTween<Color>(setter: (a) => _sprite.colorOverlay = a, start: const Color.fromARGB(200, 255, 80, 0), end: Colors.transparent, duration: 0.3));
+    _sprite.motions.run(MotionTween<Color>(
+        setter: (a) => _sprite.colorOverlay = a,
+        start: const Color.fromARGB(200, 255, 80, 0),
+        end: Colors.transparent,
+        duration: 0.3));
     double hpRatio = 1.0 - (damage / maxDamage);
     _powerBar.power = hpRatio.clamp(0.0, 1.0);
     if (hpRatio < 0.5) _phase = 2;
@@ -289,9 +330,8 @@ class BossVenom extends Obstacle {
   BossVenom(GameObjectFactory f, int level) : super(f) {
     radius = 44.0;
     // No custom image — draw with shader using boss_0 tinted green
-    _sprite = Sprite(texture: f.sheet["enemy_boss_0.png"]!);
-    _sprite.scale = 0.35;
-    _sprite.colorOverlay = const Color(0xAA00FF44); // Toxic green
+    _sprite = Sprite.fromImage(imageMap['assets/boss_venom_clean.png']!);
+    _sprite.scale = 0.09;
     addChild(_sprite);
     maxDamage = 70.0 + 32.0 * level;
 
@@ -299,7 +339,8 @@ class BossVenom extends Obstacle {
     _powerBar.pivot = const Offset(0.5, 0.5);
     f.level.addChild(_powerBar);
     _powerBar.constraints = <Constraint>[
-      ConstraintPositionToNode(targetNode: this, dampening: 0.5, offset: const Offset(0.0, -80.0))
+      ConstraintPositionToNode(
+          targetNode: this, dampening: 0.5, offset: const Offset(0.0, -80.0))
     ];
   }
 
@@ -310,10 +351,15 @@ class BossVenom extends Obstacle {
   @override
   void setupActions() {
     // Organic wavering motion
-    ActionOscillate oscH = ActionOscillate((Offset a) => position = a, position, 100.0, 3.0);
+    ActionOscillate oscH =
+        ActionOscillate((Offset a) => position = a, position, 100.0, 3.0);
     motions.run(MotionRepeatForever(motion: oscH));
     // Pulse scale
-    MotionTween<double> pulse = MotionTween<double>(setter: (a) => _sprite.scale = a, start: 0.33, end: 0.38, duration: 0.8);
+    MotionTween<double> pulse = MotionTween<double>(
+        setter: (a) => _sprite.scale = a,
+        start: 0.085,
+        end: 0.10,
+        duration: 0.8);
     _sprite.motions.run(MotionRepeatForever(motion: pulse));
   }
 
@@ -327,9 +373,11 @@ class BossVenom extends Obstacle {
       Offset shipDir = f.level.ship.position - position;
       double angle = degrees(math.atan2(shipDir.dy, shipDir.dx));
       for (double spread in [-20.0, -10.0, 0.0, 10.0, 20.0]) {
-        EnemyLaser laser = EnemyLaser(f, angle + spread + 90.0, 5.0, const Color(0xFF44FF44));
+        EnemyLaser laser =
+            EnemyLaser(f, angle + spread + 90.0, 5.0, const Color(0xFF44FF44));
         double rad = radians(angle + spread);
-        laser.position = position + Offset(math.cos(rad) * 30, math.sin(rad) * 30);
+        laser.position =
+            position + Offset(math.cos(rad) * 30, math.sin(rad) * 30);
         f.level.addChild(laser);
       }
       _countdown = 50;
@@ -343,9 +391,12 @@ class BossVenom extends Obstacle {
     NodeWithSize screen = f.playerState.parent as NodeWithSize;
     screen.addChild(Flash(screen.size, 1.0));
     super.destroy();
-    for (int i = 0; i < 30; i++) {
-      Coin coin = Coin(f);
-      f.addGameObject(coin, Offset(randomSignedDouble() * 160, position.dy + randomSignedDouble() * 160));
+    for (int i = 0; i < 10; i++) {
+      Coin coin = Coin(f, value: 10);
+      f.addGameObject(
+          coin,
+          Offset(randomSignedDouble() * 160,
+              position.dy + randomSignedDouble() * 160));
     }
   }
 
@@ -360,7 +411,11 @@ class BossVenom extends Obstacle {
   @override
   set damage(double d) {
     super.damage = d;
-    _sprite.motions.run(MotionTween<Color>(setter: (a) => _sprite.colorOverlay = a, start: const Color.fromARGB(220, 200, 255, 200), end: const Color(0xAA00FF44), duration: 0.3));
+    _sprite.motions.run(MotionTween<Color>(
+        setter: (a) => _sprite.colorOverlay = a,
+        start: const Color.fromARGB(220, 200, 255, 200),
+        end: Colors.transparent,
+        duration: 0.3));
     _powerBar.power = (1.0 - damage / maxDamage).clamp(0.0, 1.0);
   }
 }
@@ -370,9 +425,8 @@ class BossColossus extends Obstacle {
   BossColossus(GameObjectFactory f, int level) : super(f) {
     radius = 58.0;
     // Draw using boss_2 tinted dark with orange highlights
-    _sprite = Sprite(texture: f.sheet["enemy_boss_2.png"]!);
-    _sprite.scale = 0.42;
-    _sprite.colorOverlay = const Color(0xAA222222);
+    _sprite = Sprite.fromImage(imageMap['assets/boss_colossus_clean.png']!);
+    _sprite.scale = 0.12;
     addChild(_sprite);
     maxDamage = 100.0 + 45.0 * level;
 
@@ -380,7 +434,8 @@ class BossColossus extends Obstacle {
     _powerBar.pivot = const Offset(0.5, 0.5);
     f.level.addChild(_powerBar);
     _powerBar.constraints = <Constraint>[
-      ConstraintPositionToNode(targetNode: this, dampening: 0.5, offset: const Offset(0.0, -95.0))
+      ConstraintPositionToNode(
+          targetNode: this, dampening: 0.5, offset: const Offset(0.0, -95.0))
     ];
   }
 
@@ -392,15 +447,18 @@ class BossColossus extends Obstacle {
 
   // Turret positions relative to center
   final List<Offset> _turrets = const [
-    Offset(-50, 0), Offset(50, 0),
-    Offset(-30, -30), Offset(30, -30),
+    Offset(-50, 0),
+    Offset(50, 0),
+    Offset(-30, -30),
+    Offset(30, -30),
     Offset(0, 40),
   ];
 
   @override
   void setupActions() {
     // Very slow drift — it's a platform
-    ActionOscillate osc = ActionOscillate((Offset a) => position = a, position, 30.0, 12.0);
+    ActionOscillate osc =
+        ActionOscillate((Offset a) => position = a, position, 30.0, 12.0);
     motions.run(MotionRepeatForever(motion: osc));
   }
 
@@ -416,10 +474,12 @@ class BossColossus extends Obstacle {
       double angle = degrees(math.atan2(shipDir.dy, shipDir.dx));
 
       for (int i = 0; i < _phase; i++) {
-        EnemyLaser laser = EnemyLaser(f, angle + i * 5.0 + 90.0, 8.0, const Color(0xFFFF8800));
+        EnemyLaser laser =
+            EnemyLaser(f, angle + i * 5.0 + 90.0, 8.0, const Color(0xFFFF8800));
         laser.radius = 12.0;
         double rad = radians(angle);
-        laser.position = turretPos + Offset(math.cos(rad) * 20, math.sin(rad) * 20);
+        laser.position =
+            turretPos + Offset(math.cos(rad) * 20, math.sin(rad) * 20);
         f.level.addChild(laser);
       }
       _volley++;
@@ -434,9 +494,12 @@ class BossColossus extends Obstacle {
     NodeWithSize screen = f.playerState.parent as NodeWithSize;
     screen.addChild(Flash(screen.size, 2.0));
     super.destroy();
-    for (int i = 0; i < 60; i++) {
-      Coin coin = Coin(f);
-      f.addGameObject(coin, Offset(randomSignedDouble() * 160, position.dy + randomSignedDouble() * 200));
+    for (int i = 0; i < 10; i++) {
+      Coin coin = Coin(f, value: 10);
+      f.addGameObject(
+          coin,
+          Offset(randomSignedDouble() * 160,
+              position.dy + randomSignedDouble() * 200));
     }
   }
 
@@ -451,7 +514,11 @@ class BossColossus extends Obstacle {
   @override
   set damage(double d) {
     super.damage = d;
-    _sprite.motions.run(MotionTween<Color>(setter: (a) => _sprite.colorOverlay = a, start: const Color.fromARGB(200, 255, 140, 0), end: const Color(0xAA222222), duration: 0.3));
+    _sprite.motions.run(MotionTween<Color>(
+        setter: (a) => _sprite.colorOverlay = a,
+        start: const Color.fromARGB(200, 255, 140, 0),
+        end: const Color(0xAA222222),
+        duration: 0.3));
     double hpRatio = 1.0 - (damage / maxDamage);
     _powerBar.power = hpRatio.clamp(0.0, 1.0);
     if (hpRatio < 0.66) _phase = 2;

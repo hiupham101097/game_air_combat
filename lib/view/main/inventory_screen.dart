@@ -5,6 +5,7 @@ import 'package:mini__game2/main.dart';
 import 'package:mini__game2/model/ship_model.dart' as ship_models;
 import 'package:mini__game2/model/weapon.dart';
 import 'package:mini__game2/model/equipment.dart';
+import 'package:mini__game2/controller/persistant_game_state.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({Key? key}) : super(key: key);
@@ -103,7 +104,7 @@ class _InventoryScreenState extends State<InventoryScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -117,7 +118,7 @@ class _InventoryScreenState extends State<InventoryScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF0a0a1a),
       appBar: AppBar(
-        title: const Text('HANGAR & GEAR',
+        title: const Text('NHÀ CHỨA & TRANG BỊ',
             style: TextStyle(
                 fontFamily: 'Orbitron',
                 color: Colors.white,
@@ -135,13 +136,16 @@ class _InventoryScreenState extends State<InventoryScreen>
                   const Icon(Icons.monetization_on,
                       color: Colors.amber, size: 18),
                   const SizedBox(width: 4),
-                  Text(
-                    '${gameState.coins}',
-                    style: const TextStyle(
-                        fontFamily: 'Orbitron',
-                        color: Colors.amber,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold),
+                  ValueListenableBuilder<int>(
+                    valueListenable: gameState.coinsNotifier,
+                    builder: (context, coins, _) => Text(
+                      '$coins',
+                      style: const TextStyle(
+                          fontFamily: 'Orbitron',
+                          color: Colors.amber,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
@@ -156,7 +160,6 @@ class _InventoryScreenState extends State<InventoryScreen>
           labelStyle: const TextStyle(fontFamily: 'Orbitron', fontSize: 13),
           tabs: const [
             Tab(text: 'HANGAR'),
-            Tab(text: 'WEAPONS'),
             Tab(text: 'EQUIPMENT'),
           ],
         ),
@@ -165,7 +168,6 @@ class _InventoryScreenState extends State<InventoryScreen>
         controller: _tabController,
         children: [
           _buildHangarTab(),
-          _buildWeaponsTab(),
           _buildEquipmentTab(),
         ],
       ),
@@ -244,6 +246,19 @@ class _InventoryScreenState extends State<InventoryScreen>
                           style: const TextStyle(
                               color: Colors.white54, fontSize: 12)),
                       const SizedBox(height: 8),
+                      Text(
+                        'KIỂU BẮN: ${WeaponConfig.weapons[ship.weapon]!.name}',
+                        style: const TextStyle(
+                            color: Colors.cyanAccent,
+                            fontFamily: 'Orbitron',
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(WeaponConfig.weapons[ship.weapon]!.description,
+                          style: const TextStyle(
+                              color: Colors.white54, fontSize: 11)),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           const Icon(Icons.speed,
@@ -269,7 +284,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                           color: Colors.cyanAccent,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text('ACTIVE',
+                        child: const Text('ĐANG DÙNG',
                             style: TextStyle(
                                 color: Colors.black,
                                 fontFamily: 'Orbitron',
@@ -289,7 +304,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                             gameState.store();
                           });
                         },
-                        child: const Text('EQUIP',
+                        child: const Text('TRANG BỊ',
                             style: TextStyle(
                                 fontFamily: 'Orbitron',
                                 color: Colors.white,
@@ -312,12 +327,12 @@ class _InventoryScreenState extends State<InventoryScreen>
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                  content: Text('Not enough coins!'),
+                                  content: Text('Không đủ xu!'),
                                   backgroundColor: Colors.red),
                             );
                           }
                         },
-                        child: Text('${ship.cost}\nCOINS',
+                        child: Text('${ship.cost}\nXU',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 fontFamily: 'Orbitron',
@@ -334,6 +349,9 @@ class _InventoryScreenState extends State<InventoryScreen>
     );
   }
 
+  // Kept temporarily for compatibility with existing saved weapon data. The
+  // tab is intentionally no longer exposed: firing patterns are ship-bound.
+  // ignore: unused_element
   Widget _buildWeaponsTab() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -396,7 +414,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                       color: Colors.purpleAccent,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('ACTIVE',
+                    child: const Text('ĐANG DÙNG',
                         style: TextStyle(
                             color: Colors.white,
                             fontFamily: 'Orbitron',
@@ -412,7 +430,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                             gameState.store();
                           });
                         },
-                        child: const Text('EQUIP',
+                        child: const Text('TRANG BỊ',
                             style: TextStyle(
                                 fontFamily: 'Orbitron', fontSize: 10)),
                       )
@@ -429,12 +447,12 @@ class _InventoryScreenState extends State<InventoryScreen>
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                  content: Text('Not enough coins!'),
+                                  content: Text('Không đủ xu!'),
                                   backgroundColor: Colors.red),
                             );
                           }
                         },
-                        child: Text('${weapon.cost}\nCOINS',
+                        child: Text('${weapon.cost}\nXU',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 color: Colors.white,
@@ -687,7 +705,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                         Row(children: [
                           _rarityBadge(item.rarity),
                           const SizedBox(width: 6),
-                          Text('Slot: ${slotName.toUpperCase()}',
+                          Text('Vị trí: ${slotName.toUpperCase()}',
                               style: const TextStyle(
                                   color: Colors.cyanAccent, fontSize: 10)),
                         ]),
@@ -757,7 +775,7 @@ class _InventoryScreenState extends State<InventoryScreen>
             ));
           } else {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('❌ Không đủ Coin!'),
+              content: Text('❌ Không đủ xu!'),
               backgroundColor: Colors.red,
             ));
           }
@@ -775,7 +793,7 @@ class _InventoryScreenState extends State<InventoryScreen>
         border: Border.all(color: item.color.withAlpha(150)),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text('GACHA',
+      child: Text('MỞ RƯƠNG',
           style: TextStyle(
               fontFamily: 'Orbitron',
               fontSize: 10,
@@ -787,7 +805,7 @@ class _InventoryScreenState extends State<InventoryScreen>
     final int gachaCost = 1000 * amount;
     if (gameState.coins < gachaCost) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('❌ Cần $gachaCost Coin để mở Rương!'),
+        content: Text('❌ Cần $gachaCost xu để mở rương!'),
         backgroundColor: Colors.red,
       ));
       return;
@@ -1138,10 +1156,15 @@ class _InventoryScreenState extends State<InventoryScreen>
       itemCount: ownedItems.length,
       itemBuilder: (context, index) {
         final item = ownedItems[index];
-        final level = gameState.equipmentLevels[item.id] ?? 1;
+        final level = gameState.equipmentLevel(item.id);
         final stoneCost = item.getUpgradeStoneCost(level);
         final coreCost = item.getUpgradeCoreCost(level);
-        final canUpgrade = gameState.energyStones >= stoneCost &&
+        final isMaxLevel = level >= PersistantGameState.maxEquipmentLevel;
+        final unlocksAtTen =
+            level == 9 && !gameState.isEquipmentUpgradeUnlocked(item.id);
+        final canUpgrade = !isMaxLevel &&
+            !unlocksAtTen &&
+            gameState.energyStones >= stoneCost &&
             gameState.energyCores >= coreCost;
 
         return Container(
@@ -1182,8 +1205,22 @@ class _InventoryScreenState extends State<InventoryScreen>
                             fontFamily: 'Orbitron',
                             fontWeight: FontWeight.bold,
                             fontSize: 13)),
+                    if (unlocksAtTen)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text('Cần 4 món đang trang bị đạt cấp 9',
+                            style: TextStyle(
+                                color: Colors.amberAccent, fontSize: 10)),
+                      ),
+                    if (isMaxLevel)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text('Đã đạt cấp tối đa: 100',
+                            style: TextStyle(
+                                color: Colors.amberAccent, fontSize: 10)),
+                      ),
                     const SizedBox(height: 4),
-                    Text('Level $level ➔ ${level + 1}',
+                    Text('Cấp $level ➔ ${level + 1}',
                         style: const TextStyle(
                             color: Colors.cyanAccent,
                             fontSize: 11,
@@ -1227,7 +1264,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                         setState(() {
                           gameState.energyStones -= stoneCost;
                           gameState.energyCores -= coreCost;
-                          gameState.equipmentLevels[item.id] = level + 1;
+                          gameState.equipmentLevels[item.id] = (level + 1)
+                              .clamp(1, PersistantGameState.maxEquipmentLevel);
                           gameState.store();
                         });
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

@@ -13,6 +13,15 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
+// AGP 8.7 can lose the temporary output created while stripping jni's
+// libdartjni.so on Windows. The original library is safe to package in debug
+// builds, so skip symbol stripping for that dependency.
+gradle.projectsEvaluated {
+    project(':jni').tasks.named('stripDebugDebugSymbols') {
+        enabled = false
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }

@@ -16,19 +16,32 @@ class Laser extends GameObject {
     removeLimit = _gameSizeHeight * 5 + radius; //Tăng chiều dài đạn bắn ra
     canDamageShip = false;
     canBeDamaged = false;
-    impact = (1.0 + level * 0.5) * f.playerState.damageMultiplier;
+    impact = (1.0 + level * 0.5) *
+        f.playerState.damageMultiplier *
+        f.playerState.weaponDamageMultiplier *
+        f.playerState.ammoDamageMultiplier;
 
     // Tăng tốc độ lase bắn
-    _offset = Offset(math.cos(radians(r)) * 80.0,
+    _offset = Offset(math.cos(radians(r)) * 8.0,
         math.sin(radians(r)) * 8.0 - f.playerState.scrollSpeed);
 
     // tăng kích thước đạn
     rotation = r + 90.0;
 
     addLaserSprites(this, level, r, f.sheet);
+    applyPickupTint();
   }
 
   late Offset _offset;
+
+  void applyPickupTint() {
+    if (!f.playerState.hasProjectileColor) return;
+    for (final child in children) {
+      if (child is Sprite) {
+        child.colorOverlay = f.playerState.projectileColor;
+      }
+    }
+  }
 
   @override
   void move() {
@@ -44,7 +57,10 @@ class Laser extends GameObject {
 class PiercingLaser extends Laser {
   PiercingLaser(GameObjectFactory f, int level, double r) : super(f, level, r) {
     canBeDamaged = false; // Never destroyed by impacts
-    impact = (10.0 + level * 2.0) * f.playerState.damageMultiplier; // High damage
+    impact = (10.0 + level * 2.0) *
+        f.playerState.damageMultiplier *
+        f.playerState.weaponDamageMultiplier *
+        f.playerState.ammoDamageMultiplier; // High damage
 
     // Tint the piercing laser purple
     for (Node child in children) {
@@ -52,6 +68,7 @@ class PiercingLaser extends Laser {
         child.colorOverlay = const Color(0xFFFF00FF);
       }
     }
+    applyPickupTint();
   }
 
   @override
@@ -64,7 +81,10 @@ class HomingLaser extends Laser {
   GameObject? target;
 
   HomingLaser(GameObjectFactory f, int level, double r) : super(f, level, r) {
-    impact = (0.8 + level * 0.4) * f.playerState.damageMultiplier; // Slightly lower damage for homing
+    impact = (0.8 + level * 0.4) *
+        f.playerState.damageMultiplier *
+        f.playerState.weaponDamageMultiplier *
+        f.playerState.ammoDamageMultiplier; // Slightly lower damage for homing
 
     // Tint the homing laser cyan
     for (Node child in children) {
@@ -72,6 +92,7 @@ class HomingLaser extends Laser {
         child.colorOverlay = const Color(0xFF00FFFF);
       }
     }
+    applyPickupTint();
   }
 
   @override
@@ -114,5 +135,39 @@ class HomingLaser extends Laser {
     }
 
     super.move();
+  }
+}
+
+class PlasmaLaser extends Laser {
+  PlasmaLaser(GameObjectFactory f, int level, double r) : super(f, level, r) {
+    radius = 18.0;
+    impact = (3.0 + level * 1.2) *
+        f.playerState.damageMultiplier *
+        f.playerState.weaponDamageMultiplier *
+        f.playerState.ammoDamageMultiplier;
+    for (final child in children) {
+      if (child is Sprite) {
+        child.scale = 1.35;
+        child.colorOverlay = const Color(0xFFFF7A18);
+      }
+    }
+    applyPickupTint();
+  }
+}
+
+class NovaLaser extends Laser {
+  NovaLaser(GameObjectFactory f, int level, double r) : super(f, level, r) {
+    radius = 26.0;
+    impact = (4.0 + level * 1.5) *
+        f.playerState.damageMultiplier *
+        f.playerState.weaponDamageMultiplier *
+        f.playerState.ammoDamageMultiplier;
+    for (final child in children) {
+      if (child is Sprite) {
+        child.scale = 1.7;
+        child.colorOverlay = const Color(0xFFB060FF);
+      }
+    }
+    applyPickupTint();
   }
 }

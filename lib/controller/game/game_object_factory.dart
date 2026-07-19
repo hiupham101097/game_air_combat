@@ -125,7 +125,10 @@ class GameObjectFactory {
   }
 
   void addEliteEnemyWave(int level, double yPos) {
-    final unlockedTypes = (level - 1).clamp(1, EliteEnemyType.values.length);
+    // Mini- and major-boss types are scheduled by the level flow, never
+    // selected randomly as a regular elite wave.
+    const regularEliteTypes = 4;
+    final unlockedTypes = (level - 1).clamp(1, regularEliteTypes);
     final count = level >= 7 ? 2 : 1;
     for (var index = 0; index < count; index++) {
       final typeIndex = ((level - 2) + index * 3) % unlockedTypes;
@@ -136,6 +139,24 @@ class GameObjectFactory {
             yPos + chunkSpacing * (0.25 + randomDouble() * 0.5)),
       );
     }
+  }
+
+  /// The end-of-level encounter for normal levels. It is smaller than a full
+  /// boss but still counts as a boss defeat for the run-only power buff.
+  void addMiniBossFight(int level, double yPos) {
+    final type = switch (level % 3) {
+      0 => EliteEnemyType.novaMiniBoss,
+      1 => EliteEnemyType.phantomMiniBoss,
+      _ => EliteEnemyType.warshipMiniBoss,
+    };
+    final miniBoss = EliteEnemy(this, type, level);
+    miniBoss.scoreReward = 100;
+    miniBoss.grantsBossBuff = true;
+    addGameObject(miniBoss, Offset(0.0, yPos + chunkSpacing / 2.0));
+    playerState.boss = miniBoss;
+    // Mini-bosses are the level gate too. Keep the stage from scrolling into
+    // the next level until this exact enemy has been defeated.
+    playerState.boss = miniBoss;
   }
 
   void addGameObject(GameObject obj, Offset pos) {
@@ -174,6 +195,10 @@ class GameObjectFactory {
       default:
         boss = BossColossus(this, level);
     }
+
+    // Boss rewards are fixed, independent of their health scaling.
+    boss.scoreReward = 100;
+    boss.grantsBossBuff = true;
 
     Offset pos = Offset(0.0, yPos + chunkSpacing / 2.0);
     addGameObject(boss, pos);

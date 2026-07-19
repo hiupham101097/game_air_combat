@@ -2,21 +2,21 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
-import 'package:mini__game2/main.dart';
 import 'package:mini__game2/model/weapon.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 class WeaponPickup extends Collectable {
   WeaponPickup(GameObjectFactory f, this.type) : super(f) {
     radius = 20.0;
-    
+
     // Background glow
     Sprite glow = Sprite(texture: f.sheet["explosion_particle.png"]!);
     glow.scale = 2.0;
     glow.blendMode = ui.BlendMode.plus;
-    
+
     // Weapon icon (we reuse a generic powerup icon or ship icon)
-    Sprite icon = Sprite(texture: f.sheet["powerup_1.png"]!); // Use speedLaser icon as base
+    Sprite icon = Sprite(
+        texture: f.sheet["powerup_1.png"]!); // Use speedLaser icon as base
     icon.scale = 0.5;
 
     // Tint based on type
@@ -30,6 +30,15 @@ class WeaponPickup extends Collectable {
         break;
       case WeaponType.homing:
         weaponColor = const Color(0xFF00FFFF); // Cyan
+        break;
+      case WeaponType.rapid:
+        weaponColor = const Color(0xFF80FF80); // Green
+        break;
+      case WeaponType.plasma:
+        weaponColor = const Color(0xFFFF7A18); // Orange
+        break;
+      case WeaponType.nova:
+        weaponColor = const Color(0xFFB060FF); // Violet
         break;
       default:
         weaponColor = const Color(0xFFFFFFFF); // White
@@ -54,7 +63,8 @@ class WeaponPickup extends Collectable {
       end: 0.4,
       duration: 0.5,
     );
-    icon.motions.run(MotionRepeatForever(motion: MotionSequence(motions: [scaleUp, scaleDown])));
+    icon.motions.run(MotionRepeatForever(
+        motion: MotionSequence(motions: [scaleUp, scaleDown])));
   }
 
   final WeaponType type;

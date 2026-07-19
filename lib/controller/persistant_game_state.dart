@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:mini__game2/controller/cloud_sync_service.dart';
 import 'package:mini__game2/main.dart';
 import 'package:mini__game2/model/quest.dart';
@@ -25,8 +27,8 @@ class PersistantGameState {
       }
     }
 
-    _checkDailyReset();
-    if (resetProgression) await store();
+    final dailyQuestsReset = resetDailyQuestsIfNeeded();
+    if (resetProgression || dailyQuestsReset) await store();
   }
 
   void _fromJson(Map data) {
@@ -49,6 +51,7 @@ class PersistantGameState {
     unlockedWeapons = data['unlockedWeapons']?.cast<int>() ?? [0];
     equippedWeapon = data['equippedWeapon'] ?? 0;
     lastLoginDate = data['lastLoginDate'] ?? "";
+    lastWeeklyQuestWeek = data['lastWeeklyQuestWeek'] ?? '';
     unlockedShips = data['unlockedShips']?.cast<int>() ?? [0];
     equippedShip = data['equippedShip'] ?? 0;
 
@@ -57,7 +60,7 @@ class PersistantGameState {
           .map((q) => DailyQuest.fromJson(q))
           .toList();
     } else {
-      _generateDailyQuests();
+      _generateAllQuests();
     }
 
     ownedEquipment = data['ownedEquipment']?.cast<String>() ?? <String>[];
@@ -71,7 +74,6 @@ class PersistantGameState {
     } else {
       equipmentLevels = <String, int>{};
     }
-
   }
 
   void _resetProgression() {
@@ -93,7 +95,8 @@ class PersistantGameState {
     equippedLoadout = <String, String>{};
     equipmentLevels = <String, int>{};
     lastLoginDate = '';
-    _generateDailyQuests();
+    lastWeeklyQuestWeek = '';
+    _generateAllQuests();
   }
 
   Map<String, dynamic> toJson() {
@@ -112,6 +115,7 @@ class PersistantGameState {
       'unlockedWeapons': unlockedWeapons,
       'equippedWeapon': equippedWeapon,
       'lastLoginDate': lastLoginDate,
+      'lastWeeklyQuestWeek': lastWeeklyQuestWeek,
       'unlockedShips': unlockedShips,
       'equippedShip': equippedShip,
       'dailyQuests': dailyQuests.map((q) => q.toJson()).toList(),
@@ -139,11 +143,18 @@ class PersistantGameState {
         cloudData['progressionVersion'] == _progressionVersion) {
       _fromJson(cloudData);
       // Save downloaded data to local storage
+      resetDailyQuestsIfNeeded();
       await store();
     }
   }
 
-  int coins = 0;
+  // A single observable source of truth keeps every screen's coin display in
+  // sync immediately after rewards and purchases.
+  final ValueNotifier<int> coinsNotifier = ValueNotifier<int>(0);
+
+  int get coins => coinsNotifier.value;
+
+  set coins(int value) => coinsNotifier.value = value;
 
   List<int> unlockedWeapons = <int>[0];
   int equippedWeapon = 0;
@@ -152,10 +163,21 @@ class PersistantGameState {
   int equippedShip = 0;
 
   String lastLoginDate = "";
+  String lastWeeklyQuestWeek = '';
 
   List<String> ownedEquipment = <String>[];
   Map<String, String> equippedLoadout = <String, String>{};
   Map<String, int> equipmentLevels = <String, int>{}; // ID -> Level
+  static const int maxEquipmentLevel = 100;
+
+  int equipmentLevel(String itemId) =>
+      (equipmentLevels[itemId] ?? 1).clamp(1, maxEquipmentLevel);
+
+  bool isEquipmentUpgradeUnlocked(String itemId) {
+    // Equipment upgrades are independent. Previously the level 9 -> 10
+    // upgrade was blocked until every equipped slot reached level 9.
+    return equipmentLevel(itemId) < maxEquipmentLevel;
+  }
 
   int energyStones = 0;
   int energyCores = 0;
@@ -171,7 +193,10 @@ class PersistantGameState {
     return _powerupLevels[idx];
   }
 
-  int maxPowerUpLevel = 8;
+  // Internal level starts at 0 while the UI displays level + 1. Keeping this
+  // at 99 allows the four permanent power upgrades to reach displayed level
+  // 100 instead of silently stopping at level 9.
+  int maxPowerUpLevel = 99;
 
   int _currentStartingLevel = 0;
 
@@ -234,8 +259,10 @@ class PersistantGameState {
   }
 
   int laserUpgradePrice() {
-    //nâng cấp súc mạnh lase
-    return laserLevel * 6600 + 20000;
+    // Giá theo từng bậc, sau bậc 4 giữ cố định để nâng cấp cuối game
+    // vẫn có thể đạt được.
+    const prices = <int>[1000, 2000, 4000, 8000];
+    return prices[laserLevel.clamp(0, prices.length - 1)];
   }
 
   bool upgradeLaser() {
@@ -257,40 +284,114 @@ class PersistantGameState {
     store();
   }
 
-  void _checkDailyReset() {
-    String today = DateTime.now().toIso8601String().split('T')[0];
+  /// Resets daily quests at 00:00 and weekly quests each Monday at 00:00,
+  /// using Vietnam time (UTC+7) regardless of the device timezone.
+  bool resetDailyQuestsIfNeeded() {
+    final vietnamNow = DateTime.now().toUtc().add(const Duration(hours: 7));
+    final today = _dateKey(vietnamNow);
+    final monday = vietnamNow.subtract(Duration(days: vietnamNow.weekday - 1));
+    final currentWeek = _dateKey(monday);
+    var wasReset = false;
+
+    // Migrate the former three daily quests into the new 7 daily + 3 weekly set.
+    if (dailyQuests.length != 10 ||
+        dailyQuests
+                .where((quest) => quest.period == QuestPeriod.weekly)
+                .length !=
+            3) {
+      _generateAllQuests();
+      lastLoginDate = today;
+      lastWeeklyQuestWeek = currentWeek;
+      return true;
+    }
+
     if (lastLoginDate != today) {
       lastLoginDate = today;
       _generateDailyQuests();
-      store();
+      wasReset = true;
     }
+    if (lastWeeklyQuestWeek != currentWeek) {
+      lastWeeklyQuestWeek = currentWeek;
+      _generateWeeklyQuests();
+      wasReset = true;
+    }
+    return wasReset;
+  }
+
+  String _dateKey(DateTime date) => '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+
+  void _generateAllQuests() {
+    dailyQuests = [];
+    _generateDailyQuests();
+    _generateWeeklyQuests();
   }
 
   void _generateDailyQuests() {
+    final random = Random();
+    final quests = List<DailyQuest>.generate(7, (index) {
+      final type = QuestType.values[index % QuestType.values.length];
+      late int target;
+      late String description;
+      switch (type) {
+        case QuestType.playGames:
+          target = 1 + random.nextInt(5);
+          description = 'Play $target Games';
+        case QuestType.killEnemies:
+          target = (1 + random.nextInt(8)) * 10;
+          description = 'Destroy $target Enemies';
+        case QuestType.collectCoins:
+          target = (1 + random.nextInt(10)) * 20;
+          description = 'Collect $target Coins';
+      }
+      return DailyQuest(
+        id: 'daily_${index + 1}',
+        type: type,
+        description: description,
+        target: target,
+        coinReward: 1 + random.nextInt(200),
+      );
+    });
     dailyQuests = [
+      ...quests,
+      ...dailyQuests.where((quest) => quest.period == QuestPeriod.weekly),
+    ];
+  }
+
+  void _generateWeeklyQuests() {
+    const reward = 1500;
+    final quests = [
       DailyQuest(
-          id: "q1",
+          id: 'weekly_1',
           type: QuestType.playGames,
-          description: "Play 3 Games",
-          target: 3,
-          coinReward: 500),
+          description: 'Play 20 Games',
+          target: 20,
+          coinReward: reward,
+          period: QuestPeriod.weekly),
       DailyQuest(
-          id: "q2",
+          id: 'weekly_2',
           type: QuestType.killEnemies,
-          description: "Destroy 100 Enemies",
-          target: 100,
-          coinReward: 1000),
+          description: 'Destroy 1,000 Enemies',
+          target: 1000,
+          coinReward: reward,
+          period: QuestPeriod.weekly),
       DailyQuest(
-          id: "q3",
+          id: 'weekly_3',
           type: QuestType.collectCoins,
-          description: "Collect 500 Coins",
-          target: 500,
-          coinReward: 1500),
+          description: 'Collect 1,000 Coins',
+          target: 1000,
+          coinReward: reward,
+          period: QuestPeriod.weekly),
+    ];
+    dailyQuests = [
+      ...dailyQuests.where((quest) => quest.period == QuestPeriod.daily),
+      ...quests,
     ];
   }
 
   void updateQuestProgress(QuestType type, int amount) {
-    bool updated = false;
+    bool updated = resetDailyQuestsIfNeeded();
     for (var quest in dailyQuests) {
       if (quest.type == type &&
           !quest.isClaimed &&
