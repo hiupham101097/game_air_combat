@@ -212,8 +212,6 @@ class PersistantGameState {
 
   int laserLevel = 0;
 
-  int maxLaserLevel = 11;
-
   int _lastScore = 0;
 
   int get lastScore => _lastScore;
@@ -261,12 +259,11 @@ class PersistantGameState {
   int laserUpgradePrice() {
     // Giá theo từng bậc, sau bậc 4 giữ cố định để nâng cấp cuối game
     // vẫn có thể đạt được.
-    const prices = <int>[1000, 2000, 4000, 8000];
-    return prices[laserLevel.clamp(0, prices.length - 1)];
+    return (750 * pow(1.45, laserLevel)).round();
   }
 
   bool upgradeLaser() {
-    if (coins >= laserUpgradePrice() && laserLevel < maxLaserLevel) {
+    if (coins >= laserUpgradePrice()) {
       coins -= laserUpgradePrice();
       laserLevel++;
       store();

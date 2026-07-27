@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/game/game_demo_node.dart';
 import 'package:mini__game2/controller/player_state.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
+import 'package:mini__game2/controller/rewarded_ad_service.dart';
 import 'package:mini__game2/main.dart';
 import 'package:spritewidget/spritewidget.dart';
 
@@ -25,6 +26,9 @@ class GameSceneState extends State<GameScene> {
   late GameDemoNode _game;
   bool _isPaused = false;
   List<BossBuffReward>? _bossBuffChoices;
+  bool _showReviveOffer = false;
+  bool _powerAdUsed = false;
+  bool _showingRewardedAd = false;
 
   @override
   void initState() {
@@ -51,7 +55,38 @@ class GameSceneState extends State<GameScene> {
         _game.pause();
         setState(() => _bossBuffChoices = choices);
       },
+      onReviveOffer: () {
+        if (mounted) setState(() => _showReviveOffer = true);
+      },
     );
+  }
+
+  Future<void> _watchReviveAd() async {
+    if (_showingRewardedAd) return;
+    setState(() => _showingRewardedAd = true);
+    final earned = await RewardedAdService.instance.showRewardedAd();
+    if (!mounted) return;
+    setState(() {
+      _showingRewardedAd = false;
+      _showReviveOffer = false;
+    });
+    if (earned) {
+      _game.reviveFromRewardedAd();
+    } else {
+      _game.endRun();
+    }
+  }
+
+  Future<void> _watchPowerAd() async {
+    if (_powerAdUsed || _showingRewardedAd) return;
+    setState(() => _showingRewardedAd = true);
+    final earned = await RewardedAdService.instance.showRewardedAd();
+    if (!mounted) return;
+    setState(() {
+      _showingRewardedAd = false;
+      if (earned) _powerAdUsed = true;
+    });
+    if (earned) _game.grantRewardedAdPowerBoost();
   }
 
   void _chooseBossBuff(BossBuffReward reward) {
@@ -85,7 +120,8 @@ class GameSceneState extends State<GameScene> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return Scaffold(
+        body: Stack(
       children: [
         // ── Game canvas ──────────────────────────────────────────────
         SpriteWidget(
@@ -145,7 +181,7 @@ class GameSceneState extends State<GameScene> {
                   children: [
                     // Title
                     const Text(
-                      'TẠM DỪNG',
+                      'Tạm dừng',
                       style: TextStyle(
                         fontFamily: 'Orbitron',
                         color: Colors.cyanAccent,
@@ -163,16 +199,26 @@ class GameSceneState extends State<GameScene> {
 
                     // Resume button
                     _PauseMenuButton(
-                      label: 'TIẾP TỤC',
+                      label: 'Tiếp tục',
                       icon: Icons.play_arrow,
                       color: Colors.cyanAccent,
                       onTap: _togglePause,
                     ),
                     const SizedBox(height: 14),
 
+                    if (!_powerAdUsed) ...[
+                      _PauseMenuButton(
+                        label: _showingRewardedAd ? 'Đang tải...' : 'Buff dame',
+                        icon: Icons.play_circle_outline,
+                        color: Colors.amberAccent,
+                        onTap: _watchPowerAd,
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+
                     // Quit button
                     _PauseMenuButton(
-                      label: 'THOÁT',
+                      label: 'Thoát',
                       icon: Icons.exit_to_app,
                       color: Colors.redAccent,
                       onTap: () {
@@ -195,7 +241,7 @@ class GameSceneState extends State<GameScene> {
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(dialogContext),
-                                child: const Text('Ở LẠI',
+                                child: const Text('Tiếp tục',
                                     style: TextStyle(
                                         fontFamily: 'Orbitron',
                                         color: Colors.cyanAccent)),
@@ -205,7 +251,7 @@ class GameSceneState extends State<GameScene> {
                                   Navigator.pop(dialogContext); // close dialog
                                   _quitGame();
                                 },
-                                child: const Text('THOÁT',
+                                child: const Text('Thóa',
                                     style: TextStyle(
                                         fontFamily: 'Orbitron',
                                         color: Colors.redAccent)),
@@ -227,9 +273,64 @@ class GameSceneState extends State<GameScene> {
               onSelected: _chooseBossBuff,
             ),
           ),
+        if (_showReviveOffer)
+          Positioned.fill(
+            child: _RewardedRevivePanel(
+              isLoading: _showingRewardedAd,
+              onWatch: _watchReviveAd,
+              onEndRun: () {
+                setState(() => _showReviveOffer = false);
+                _game.endRun();
+              },
+            ),
+          ),
       ],
-    );
+    ));
   }
+}
+
+class _RewardedRevivePanel extends StatelessWidget {
+  const _RewardedRevivePanel({
+    required this.isLoading,
+    required this.onWatch,
+    required this.onEndRun,
+  });
+
+  final bool isLoading;
+  final VoidCallback onWatch;
+  final VoidCallback onEndRun;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        color: Colors.black.withAlpha(210),
+        alignment: Alignment.center,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0D0D2B),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.cyanAccent),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('Hồi sinh',
+                style: TextStyle(color: Colors.white, fontSize: 20)),
+            const SizedBox(height: 8),
+            const Text('Xem quảng cáo để hồi sinh và tiếp tục trận đấu',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70)),
+            const SizedBox(height: 18),
+            ElevatedButton(
+              onPressed: isLoading ? null : onWatch,
+              child: Text(isLoading ? 'Đang tải...' : 'Xem quảng cáo'),
+            ),
+            TextButton(
+              onPressed: isLoading ? null : onEndRun,
+              child: const Text('Về trang chủ'),
+            ),
+          ]),
+        ),
+      );
 }
 
 class _BossBuffPanel extends StatelessWidget {
@@ -264,7 +365,7 @@ class _BossBuffPanel extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('BOSS ĐÃ BỊ TIÊU DIỆT',
+            const Text('Boss đã bị đánh bại!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     color: Colors.white,

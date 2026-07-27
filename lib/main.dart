@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
+import 'package:mini__game2/controller/rewarded_ad_service.dart';
 import 'package:mini__game2/controller/setting/sound_assets.dart';
 import 'package:mini__game2/view/game/game_demo.dart';
 import 'package:mini__game2/view/main/splash_screen.dart';
@@ -55,6 +56,7 @@ main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp();
+  await RewardedAdService.instance.initialize();
 
   // Ẩn tất cả các thanh menu
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);

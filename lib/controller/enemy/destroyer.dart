@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
+import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/model/custom_actions.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
@@ -28,7 +29,8 @@ class EnemyDestroyer extends Obstacle {
     } else if (level == 2) {
       maxDamage = 16.0;
     }
-    maxDamage *= 1.0 + threatLevel * 0.45;
+    maxDamage = GameBalance.enemyHealth(maxDamage.round(), threatLevel, 1.15);
+    scoreReward = 25 + threatLevel * 7;
     _countDown = (180 - threatLevel * 8).clamp(60, 180) + randomInt(90);
 
     addChild(_sprite);

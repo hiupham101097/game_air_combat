@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
+import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
 import 'package:mini__game2/controller/power/power_bar.dart';
@@ -28,7 +29,7 @@ enum EliteEnemyType {
 class EliteEnemy extends Obstacle {
   EliteEnemy(GameObjectFactory f, this.type, this.threatLevel) : super(f) {
     // Elite/special enemies always grant a fixed bonus reward.
-    scoreReward = 50;
+    scoreReward = 60 + threatLevel * 18;
     _configureSprite();
     _configureStats();
     addChild(_sprite);
@@ -105,7 +106,7 @@ class EliteEnemy extends Obstacle {
   }
 
   void _configureStats() {
-    final scaling = 1.0 + threatLevel * 0.22;
+    final scaling = GameBalance.enemyHealth(1, threatLevel);
     switch (type) {
       case EliteEnemyType.droneMite:
         radius = 10;

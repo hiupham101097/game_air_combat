@@ -7,6 +7,7 @@ import 'package:mini__game2/model/custom_actions.dart';
 import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/flash.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
+import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/controller/power/power_bar.dart';
 import 'package:mini__game2/main.dart';
 import 'package:spritewidget/spritewidget.dart';
@@ -19,7 +20,7 @@ class BossNova extends Obstacle {
     _sprite = Sprite.fromImage(imageMap['assets/boss_nova_clean.png']!);
     _sprite.scale = 0.12;
     addChild(_sprite);
-    maxDamage = 80.0 + 35.0 * level;
+    maxDamage = GameBalance.bossHealth(level, 1.0);
 
     _powerBar = PowerBar(const Size(70.0, 10.0));
     _powerBar.pivot = const Offset(0.5, 0.5);
@@ -112,7 +113,7 @@ class BossPhantom extends Obstacle {
     _sprite = Sprite.fromImage(imageMap['assets/boss_phantom_clean.png']!);
     _sprite.scale = 0.10;
     addChild(_sprite);
-    maxDamage = 60.0 + 28.0 * level;
+    maxDamage = GameBalance.bossHealth(level, 0.85);
 
     _powerBar = PowerBar(const Size(60.0, 10.0));
     _powerBar.pivot = const Offset(0.5, 0.5);
@@ -236,7 +237,7 @@ class BossTitan extends Obstacle {
     _sprite = Sprite.fromImage(imageMap['assets/boss_titan_clean.png']!);
     _sprite.scale = 0.14;
     addChild(_sprite);
-    maxDamage = 120.0 + 50.0 * level; // Very tanky
+    maxDamage = GameBalance.bossHealth(level, 1.25);
 
     _powerBar = PowerBar(const Size(90.0, 12.0));
     _powerBar.pivot = const Offset(0.5, 0.5);
@@ -272,8 +273,9 @@ class BossTitan extends Obstacle {
       int numShots = _phase;
       for (int i = 0; i < numShots; i++) {
         double spread = (i - numShots / 2) * 8.0;
-        EnemyLaser laser =
-            EnemyLaser(f, angle + spread + 90.0, 18.0, const Color(0xFFFF4400));
+        EnemyLaser laser = EnemyLaser(
+            f, angle + spread + 90.0, 18.0, const Color(0xFFFF4400),
+            shipDamage: 2.0);
         laser.radius = 25.0;
         laser.scale = 3.0;
         double rad = radians(angle + spread);
@@ -333,7 +335,7 @@ class BossVenom extends Obstacle {
     _sprite = Sprite.fromImage(imageMap['assets/boss_venom_clean.png']!);
     _sprite.scale = 0.09;
     addChild(_sprite);
-    maxDamage = 70.0 + 32.0 * level;
+    maxDamage = GameBalance.bossHealth(level, 0.95);
 
     _powerBar = PowerBar(const Size(65.0, 10.0));
     _powerBar.pivot = const Offset(0.5, 0.5);
@@ -428,7 +430,7 @@ class BossColossus extends Obstacle {
     _sprite = Sprite.fromImage(imageMap['assets/boss_colossus_clean.png']!);
     _sprite.scale = 0.12;
     addChild(_sprite);
-    maxDamage = 100.0 + 45.0 * level;
+    maxDamage = GameBalance.bossHealth(level, 1.15);
 
     _powerBar = PowerBar(const Size(85.0, 12.0));
     _powerBar.pivot = const Offset(0.5, 0.5);

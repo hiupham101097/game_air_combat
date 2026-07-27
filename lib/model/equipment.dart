@@ -29,6 +29,7 @@ class EquipmentItem {
   // Stat bonuses (base values at level 1)
   final double damageMultiplier;
   final int hpBonus;
+  final double damageReduction;
   final double speedMultiplier;
 
   // For drones (base values at level 1)
@@ -39,7 +40,13 @@ class EquipmentItem {
   // Stat calculations based on level
   double getDamageMultiplier(int level) =>
       damageMultiplier + (damageMultiplier * 0.2 * (level - 1));
-  int getHpBonus(int level) => hpBonus + ((hpBonus > 0 ? 2 : 0) * (level - 1));
+
+  /// Armour adds a little hull integrity. Its main benefit is damage
+  /// reduction, so upgrades no longer create hundreds of HP.
+  int getHpBonus(int level) =>
+      hpBonus + (hpBonus > 0 ? ((level - 1) ~/ 25) : 0);
+  double getDamageReduction(int level) =>
+      (damageReduction + (level - 1) * 0.0015).clamp(0.0, 0.40).toDouble();
   double getSpeedMultiplier(int level) =>
       speedMultiplier + (speedMultiplier * 0.1 * (level - 1));
 
@@ -63,6 +70,7 @@ class EquipmentItem {
     this.price = 0,
     this.damageMultiplier = 0.0,
     this.hpBonus = 0,
+    this.damageReduction = 0.0,
     this.speedMultiplier = 0.0,
     this.droneFireRate = 0.0,
     this.droneDamage = 0.0,
@@ -133,6 +141,7 @@ class EquipmentItem {
       color: Colors.white,
       price: 500,
       hpBonus: 1,
+      damageReduction: 0.08,
     ),
     EquipmentItem(
       id: 'armor_2',
@@ -142,6 +151,7 @@ class EquipmentItem {
       description: 'Tăng 2 Máu (HP)',
       color: Colors.greenAccent,
       hpBonus: 2,
+      damageReduction: 0.14,
     ),
     EquipmentItem(
       id: 'armor_3',
@@ -151,6 +161,7 @@ class EquipmentItem {
       description: 'Tăng 3 Máu (HP)',
       color: Colors.purpleAccent,
       hpBonus: 3,
+      damageReduction: 0.20,
     ),
     EquipmentItem(
       id: 'armor_4',
@@ -160,6 +171,7 @@ class EquipmentItem {
       description: 'Tăng 5 Máu (HP)',
       color: Colors.orangeAccent,
       hpBonus: 5,
+      damageReduction: 0.26,
     ),
 
     // Engines

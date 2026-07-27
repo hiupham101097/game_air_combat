@@ -12,11 +12,17 @@ abstract class GameObject extends Node {
   double radius = 0.0;
   double removeLimit = 1280.0;
   bool canDamageShip = true;
+
+  /// Contact damage. Enemy lasers override this with their attack strength.
+  double shipDamage = 1.0;
   bool canBeDamaged = true;
   bool canBeCollected = false;
   // Only bosses opt into this. It keeps run-strength buffs tied strictly to
   // defeating a boss rather than normal enemy kills or XP milestones.
   bool grantsBossBuff = false;
+  // Boss encounters clear all hostile projectiles the instant they end.
+  bool clearsEnemyProjectilesOnDeath = false;
+  bool isEnemyProjectile = false;
   // Leave this null for the normal health-based score calculation. Enemies
   // with a fixed reward (bosses and elite enemies) set a specific value.
   int? scoreReward;
@@ -50,6 +56,9 @@ abstract class GameObject extends Node {
 
   void destroy() {
     if (parent != null) {
+      if (clearsEnemyProjectilesOnDeath) {
+        f.clearEnemyProjectiles();
+      }
       // Mini-bosses and full bosses both register here. Clearing the active
       // encounter lets the level resume after either one is defeated.
       if (f.playerState.boss == this) {
@@ -80,7 +89,7 @@ abstract class GameObject extends Node {
     damage += d;
     if (damage >= maxDamage) {
       destroy();
-      f.playerState.score += scoreReward ?? (maxDamage * 10).ceil();
+      f.playerState.awardKillScore(scoreReward ?? (maxDamage * 10).ceil());
       f.playerState.enemyKilled();
       f.playerState.gainExperience((maxDamage / 10).ceil().clamp(1, 50));
       if (grantsBossBuff) {

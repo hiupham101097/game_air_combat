@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/flash.dart';
 import 'package:mini__game2/controller/game/game_laser.dart';
+import 'package:mini__game2/controller/enemy/laser.dart';
 import 'package:mini__game2/controller/game/game_level.dart';
 import 'package:mini__game2/controller/game/game_level_label.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
@@ -28,7 +29,7 @@ typedef BossBuffCallback = void Function(List<BossBuffReward> choices);
 class GameDemoNode extends NodeWithSize {
   GameDemoNode(this._images, this._spritesGame, this._spritesUI, this._sounds,
       this._gameState, this._isEventMode, this._gameOverCallback,
-      {this.onBossBuff})
+      {this.onBossBuff, this.onReviveOffer})
       : super(const Size(320.0, 320.0)) {
     // Add background - use fiery event background in Event Mode
     if (_isEventMode) {
@@ -109,6 +110,7 @@ class GameDemoNode extends NodeWithSize {
   // Callback
   final GameOverCallback _gameOverCallback;
   final BossBuffCallback? onBossBuff;
+  final VoidCallback? onReviveOffer;
 
   void chooseBossBuff(BossBuffReward reward) {
     _playerState.applyBossBuff(reward);
@@ -133,6 +135,9 @@ class GameDemoNode extends NodeWithSize {
   final int _framesBetweenShots = 20;
 
   bool _gameOver = false;
+  bool _reviveUsed = false;
+  bool _gameOverReported = false;
+  final List<Node> _combatFrozenForRevive = <Node>[];
 
   @override
   void spriteBoxPerformedLayout() {
@@ -142,13 +147,41 @@ class GameDemoNode extends NodeWithSize {
 
   bool _isPaused = false;
 
-  void pause() => _isPaused = true;
-  void resume() => _isPaused = false;
+  void pause() {
+    _isPaused = true;
+    _setGameplayTreePaused(true);
+  }
+
+  void resume() {
+    _setGameplayTreePaused(false);
+    _isPaused = false;
+  }
+
+  /// SpriteWidget advances child updates and MotionControllers independently
+  /// of this root node. Freeze both recursively so a UI popup cannot leave
+  /// boss movement, bullets, timers, or animations running in the background.
+  void _setGameplayTreePaused(bool value) {
+    for (final child in children) {
+      _setNodePaused(child, value);
+    }
+  }
+
+  void _setNodePaused(Node node, bool value) {
+    node.paused = value;
+    node.motions.paused = value;
+    for (final child in node.children) {
+      _setNodePaused(child, value);
+    }
+  }
+
   bool get isPaused => _isPaused;
 
   @override
   void update(double dt) {
-    if (_isPaused) return;
+    // A regular pause or popup freezes the entire simulation. During the
+    // revival offer, only combat actors are frozen; fired projectiles keep
+    // travelling naturally while the ship is destroyed.
+    if (_isPaused || _gameOver) return;
     // Scroll the level
     _scroll = _level.scroll(_playerState.scrollSpeed);
     _starField.move(0.0, _playerState.scrollSpeed);
@@ -196,8 +229,6 @@ class GameDemoNode extends NodeWithSize {
         node.removeIfOffscreen(_scroll);
       }
     }
-
-    if (_gameOver) return;
 
     // Nuke Logic
     if (_playerState.activateNuke) {
@@ -264,8 +295,9 @@ class GameDemoNode extends NodeWithSize {
               node.destroy();
             }
           } else {
-            // The ship was hit :(
-            killShip();
+            // Armour reduces the incoming attack value before it reaches hull.
+            takeShipDamage(node.shipDamage);
+            if (node is EnemyLaser) node.destroy();
           }
         }
       } else if (node is GameObject && node.canBeCollected) {
@@ -300,28 +332,31 @@ class GameDemoNode extends NodeWithSize {
         _topLevelReached = level;
         _level.addChild(lbl);
       } else if (part == 1) {
-        _objectFactory.addEnemyDestroyerSwarm(level + 2, yPos);
+        _objectFactory.addEnemyDestroyerSwarm(level + 6, yPos);
       } else if (part == 2) {
-        _objectFactory.addEnemyScoutSwarm(level + 2, yPos);
-        _objectFactory.addAsteroids(level + 1, yPos);
+        _objectFactory.addEnemyScoutSwarm(level + 6, yPos);
+        _objectFactory.addAsteroids(level + 5, yPos);
       } else if (part == 3) {
         // EVENT: Mini boss wave
-        _objectFactory.addBossFight(level, yPos);
+        _objectFactory.addBossFight(level + 6, yPos);
       } else if (part == 4) {
-        _objectFactory.addEnemyDestroyerSwarm(level + 3, yPos);
-        _objectFactory.addEnemyScoutSwarm(level + 1, yPos);
+        _objectFactory.addEnemyDestroyerSwarm(level + 7, yPos);
+        _objectFactory.addEnemyScoutSwarm(level + 5, yPos);
+        _objectFactory.addEliteEnemyWave(level + 5, yPos);
       } else if (part == 5) {
-        _objectFactory.addAsteroids(level + 2, yPos);
-        _objectFactory.addEnemyScoutSwarm(level + 2, yPos);
+        _objectFactory.addAsteroids(level + 6, yPos);
+        _objectFactory.addEnemyScoutSwarm(level + 6, yPos);
       } else if (part == 6) {
-        _objectFactory.addEnemyDestroyerSwarm(level + 2, yPos);
+        _objectFactory.addEnemyDestroyerSwarm(level + 7, yPos);
+        _objectFactory.addEliteEnemyWave(level + 6, yPos);
       } else if (part == 7) {
         // EVENT: Double everything
-        _objectFactory.addAsteroids(level + 3, yPos);
-        _objectFactory.addEnemyDestroyerSwarm(level + 2, yPos);
+        _objectFactory.addAsteroids(level + 7, yPos);
+        _objectFactory.addEnemyDestroyerSwarm(level + 7, yPos);
+        _objectFactory.addEnemyScoutSwarm(level + 5, yPos);
       } else if (part == 8) {
         // EVENT: High-level Boss every single loop
-        _objectFactory.addBossFight(level + 2, yPos);
+        _objectFactory.addBossFight(level + 10, yPos);
       }
     } else {
       // Normal Mode
@@ -338,26 +373,21 @@ class GameDemoNode extends NodeWithSize {
           _objectFactory.addEliteEnemyWave(level, yPos);
         }
       } else if (part == 3) {
-        _objectFactory.addAsteroids(level, yPos);
-        if (level >= 2) {
-          _objectFactory.addEnemyScoutSwarm(level - 1, yPos);
-        }
+        // Recovery beat: a light hazard group, never a stacked wave.
+        _objectFactory.addAsteroids(level ~/ 2, yPos);
       } else if (part == 4) {
         _objectFactory.addEnemyDestroyerSwarm(level, yPos);
       } else if (part == 5) {
         _objectFactory.addAsteroids(level, yPos);
-        if (level >= 3) {
-          _objectFactory.addEnemyDestroyerSwarm(level - 2, yPos);
-        }
       } else if (part == 6) {
         _objectFactory.addEnemyScoutSwarm(level, yPos);
-        if (level >= 5) {
+        if (level >= 6) {
           _objectFactory.addEliteEnemyWave(level, yPos);
         }
       } else if (part == 7) {
         _objectFactory.addAsteroids(level, yPos);
-        if (level >= 4) {
-          _objectFactory.addEnemyScoutSwarm(level, yPos);
+        if (level >= 5) {
+          _objectFactory.addEnemyScoutSwarm(level - 2, yPos);
         }
       } else if (part == 8) {
         // Every level ends with a mini-boss. Each tenth level upgrades that
@@ -442,26 +472,26 @@ class GameDemoNode extends NodeWithSize {
     }
   }
 
-  void killShip() {
-    if (_playerState.hp > 1) {
-      _playerState.hp--;
-      _playerState.hpInvincibilityFrames = 120; // 2 seconds of invincibility
-      _sounds.playEffect("explosion_player");
+  void takeShipDamage(double rawDamage) {
+    // Several projectiles can overlap in one frame. The first fatal hit owns
+    // the game-over flow; later hits must not create extra end-run timers.
+    if (_gameOver) return;
+    final lostHp = _playerState.takeShipDamage(rawDamage);
+    if (lostHp == 0) return;
 
-      // Small explosion effect
-      ExplosionBig explo = ExplosionBig(_spritesGame);
-      explo.scale = 0.5;
-      explo.position = _level.ship.position;
+    _playerState.hpInvincibilityFrames = 75;
+    _sounds.playEffect("explosion_player");
+
+    if (_playerState.hp > 0) {
+      final explo = ExplosionBig(_spritesGame)
+        ..scale = 0.5
+        ..position = _level.ship.position;
       _level.addChild(explo);
       return;
     }
 
-    _playerState.hp--;
-
     // Hide ship
     _level.ship.visible = false;
-
-    _sounds.playEffect("explosion_player");
 
     // Add explosion
     ExplosionBig explo = ExplosionBig(_spritesGame);
@@ -475,12 +505,59 @@ class GameDemoNode extends NodeWithSize {
 
     // Set the state to game over
     _gameOver = true;
+    _freezeCombatForRevive();
 
-    // Return to main scene and report the score back in 2 seconds
+    // Offer one optional rewarded revival before ending the run.
     Timer(const Duration(seconds: 2), () {
-      _gameOverCallback(
-          _playerState.score, _playerState.coins, _topLevelReached);
+      if (!_reviveUsed && onReviveOffer != null) {
+        onReviveOffer!();
+      } else {
+        endRun();
+      }
     });
+  }
+
+  void reviveFromRewardedAd() {
+    if (!_gameOver || _reviveUsed) return;
+    _reviveUsed = true;
+    _gameOver = false;
+    _playerState.hp =
+        (_playerState.maxHp * 0.5).ceil().clamp(1, _playerState.maxHp);
+    _playerState.hpInvincibilityFrames = 180;
+    _level.ship.visible = true;
+    _resumeCombatAfterRevive();
+  }
+
+  /// Stops every enemy from moving or firing after the ship explodes, but
+  /// deliberately leaves existing enemy projectiles active so they finish
+  /// their trajectory instead of freezing above the player.
+  void _freezeCombatForRevive() {
+    _combatFrozenForRevive.clear();
+    for (final node in _level.children) {
+      if (node is GameObject && node.canDamageShip && !node.isEnemyProjectile) {
+        node.paused = true;
+        node.motions.paused = true;
+        _combatFrozenForRevive.add(node);
+      }
+    }
+  }
+
+  void _resumeCombatAfterRevive() {
+    for (final node in _combatFrozenForRevive) {
+      if (node.parent != null) {
+        node.paused = false;
+        node.motions.paused = false;
+      }
+    }
+    _combatFrozenForRevive.clear();
+  }
+
+  int grantRewardedAdPowerBoost() => _playerState.activateAdPowerBoost();
+
+  void endRun() {
+    if (_gameOverReported) return;
+    _gameOverReported = true;
+    _gameOverCallback(_playerState.score, _playerState.coins, _topLevelReached);
   }
 }
 

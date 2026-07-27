@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
+import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
 import 'package:spritewidget/spritewidget.dart';
@@ -20,7 +21,8 @@ class EnemyScout extends Obstacle {
     } else if (level == 2) {
       maxDamage = 8.0;
     }
-    maxDamage *= 1.0 + threatLevel * 0.35;
+    maxDamage = GameBalance.enemyHealth(maxDamage.round(), threatLevel);
+    scoreReward = 10 + threatLevel * 4;
 
     addChild(_sprite);
 

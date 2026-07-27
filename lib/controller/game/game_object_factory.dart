@@ -17,6 +17,7 @@ import 'package:mini__game2/controller/enemy/scout.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
 // import 'package:mini__game2/controller/game/game_demo_node.dart';
 import 'package:mini__game2/controller/game/game_level.dart';
+import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
 import 'package:mini__game2/controller/player_state.dart';
 import 'package:mini__game2/controller/setting/set__color.dart';
@@ -33,8 +34,8 @@ class GameObjectFactory {
   PlayerState playerState;
 
   void addAsteroids(int level, double yPos) {
-    final int numAsteroids = (10 + level * 5).clamp(10, 42);
-    final double distribution = (0.20 + level * 0.07).clamp(0.20, 0.78);
+    final int numAsteroids = (7 + level * 2).clamp(7, 24);
+    final double distribution = (0.18 + level * 0.035).clamp(0.18, 0.48);
 
     for (int i = 0; i < numAsteroids; i++) {
       GameObject obj;
@@ -53,7 +54,7 @@ class GameObjectFactory {
   }
 
   void addEnemyScoutSwarm(int level, double yPos) {
-    final int numEnemies = (4 + level * 3).clamp(4, 18);
+    final int numEnemies = (3 + level * 2).clamp(3, 12);
     late List<int> types;
     int swarmLevel = level % maxLevel;
 
@@ -91,7 +92,7 @@ class GameObjectFactory {
   }
 
   void addEnemyDestroyerSwarm(int level, double yPos) {
-    final int numEnemies = (2 + level * 2).clamp(2, 12);
+    final int numEnemies = (1 + level).clamp(1, 8);
     late List<int> types;
     int swarmLevel = level % maxLevel;
 
@@ -150,8 +151,9 @@ class GameObjectFactory {
       _ => EliteEnemyType.warshipMiniBoss,
     };
     final miniBoss = EliteEnemy(this, type, level);
-    miniBoss.scoreReward = 100;
+    miniBoss.scoreReward = GameBalance.bossScore(level, miniBoss: true);
     miniBoss.grantsBossBuff = true;
+    miniBoss.clearsEnemyProjectilesOnDeath = true;
     addGameObject(miniBoss, Offset(0.0, yPos + chunkSpacing / 2.0));
     playerState.boss = miniBoss;
     // Mini-bosses are the level gate too. Keep the stage from scrolling into
@@ -196,9 +198,10 @@ class GameObjectFactory {
         boss = BossColossus(this, level);
     }
 
-    // Boss rewards are fixed, independent of their health scaling.
-    boss.scoreReward = 100;
+    // Score reflects the encounter tier and grows predictably with level.
+    boss.scoreReward = GameBalance.bossScore(level);
     boss.grantsBossBuff = true;
+    boss.clearsEnemyProjectilesOnDeath = true;
 
     Offset pos = Offset(0.0, yPos + chunkSpacing / 2.0);
     addGameObject(boss, pos);
@@ -223,6 +226,15 @@ class GameObjectFactory {
         EnemyDestroyer destroyer1 = EnemyDestroyer(this, destroyerLevel, level);
         addGameObject(
             destroyer1, Offset(80.0, yPos + chunkSpacing / 2.0 - 70.0));
+      }
+    }
+  }
+
+  void clearEnemyProjectiles() {
+    final projectiles = List<Node>.from(level.children);
+    for (final node in projectiles) {
+      if (node is GameObject && node.isEnemyProjectile) {
+        node.removeFromParent();
       }
     }
   }

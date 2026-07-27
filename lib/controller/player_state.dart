@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
+import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
 import 'package:mini__game2/main.dart';
@@ -89,6 +90,7 @@ class PlayerState extends Node {
     int bonusHp = 0;
     double bonusDamage = 0.0;
     double bonusSpeed = 0.0;
+    double bonusDamageReduction = 0.0;
 
     _gameState.equippedLoadout.forEach((slot, id) {
       EquipmentItem? item = EquipmentItem.getById(id);
@@ -97,6 +99,7 @@ class PlayerState extends Node {
         bonusHp += item.getHpBonus(level);
         bonusDamage += item.getDamageMultiplier(level);
         bonusSpeed += item.getSpeedMultiplier(level);
+        bonusDamageReduction += item.getDamageReduction(level);
         if (item.slot == EquipmentSlot.drone) {
           droneEquipment = item;
           droneEquipmentLevel = level;
@@ -106,8 +109,10 @@ class PlayerState extends Node {
 
     maxHp = 3 + bonusHp;
     hp = maxHp; // Start with full HP
-    damageMultiplier = 1.0 + bonusDamage;
+    _equipmentDamageMultiplier = 1.0 + bonusDamage;
+    damageMultiplier = _equipmentDamageMultiplier;
     speedMultiplier = 1.0 + bonusSpeed;
+    armorDamageReduction = bonusDamageReduction.clamp(0.0, 0.40).toDouble();
 
     // Adjust scroll speed with engine speed multiplier
     scrollSpeed = normalScrollSpeed * speedMultiplier;
@@ -122,6 +127,8 @@ class PlayerState extends Node {
   Color projectileColor = Colors.white;
   int _ammoBuffFrames = 0;
   double ammoDamageMultiplier = 1.0;
+  int _adPowerFrames = 0;
+  double adDamageMultiplier = 1.0;
 
   bool get hasProjectileColor => projectileColor != Colors.white;
 
@@ -141,6 +148,14 @@ class PlayerState extends Node {
       WeaponType.plasma => const Color(0xFFFF8A65),
       WeaponType.basic => Colors.white,
     };
+  }
+
+  /// Rewarded-ad boost: rolls +3%, +4%, or +5% weapon damage for 15 seconds.
+  int activateAdPowerBoost() {
+    final percent = 3 + math.Random().nextInt(3);
+    _adPowerFrames = 900;
+    adDamageMultiplier = 1.0 + percent / 100;
+    return percent;
   }
 
   double get weaponDamageMultiplier =>
@@ -169,6 +184,26 @@ class PlayerState extends Node {
 
   void enemyKilled() {
     _gameState.updateQuestProgress(QuestType.killEnemies, 1);
+  }
+
+  static const int _maxCombo = 20;
+  int combo = 0;
+  int _comboFrames = 0;
+
+  /// Consecutive kills reward clean flying with up to double score. The timer
+  /// gives the player four seconds to find the next target; getting hit or
+  /// waiting too long resets the streak.
+  double get comboMultiplier => 1.0 + combo * 0.05;
+
+  void awardKillScore(int baseScore) {
+    combo = (combo + 1).clamp(0, _maxCombo).toInt();
+    _comboFrames = 240;
+    score += (baseScore * comboMultiplier).round();
+  }
+
+  void resetCombo() {
+    combo = 0;
+    _comboFrames = 0;
   }
 
   int get coins => _coinDisplay.score;
@@ -246,14 +281,32 @@ class PlayerState extends Node {
   int hp = 3;
   int maxHp = 3;
 
+  /// Returns hull points lost after armour has absorbed incoming damage.
+  /// Fractional damage carries forward, so reduction is deterministic.
+  int takeShipDamage(double rawDamage) {
+    if (rawDamage <= 0 || shieldActive) return 0;
+    resetCombo();
+    _damageRemainder += rawDamage * (1.0 - armorDamageReduction);
+    final lostHp = _damageRemainder.floor();
+    if (lostHp == 0) return 0;
+    _damageRemainder -= lostHp;
+    hp = (hp - lostHp).clamp(0, maxHp);
+    return lostHp;
+  }
+
   double damageMultiplier = 1.0;
+  double _equipmentDamageMultiplier = 1.0;
   double speedMultiplier = 1.0;
+  double armorDamageReduction = 0.0;
+  double _damageRemainder = 0.0;
   EquipmentItem? droneEquipment;
 
   int runLevel = 1;
   int experience = 0;
   int experienceToNextLevel = 30;
   double runFireRateMultiplier = 1.0;
+  double _bossDamageBonus = 0.0;
+  double _bossFireRateBonus = 0.0;
   int extraVolleyShots = 0;
   void Function(List<BossBuffReward> choices)? onBossBuff;
 
@@ -264,19 +317,19 @@ class PlayerState extends Node {
     experience += amount;
   }
 
-  /// Rolls the boss-only power reward. Green and purple are the normal
-  /// rewards (2–5%); gold has a 10% chance and always grants 8% damage.
+  /// Offers both damage and fire-rate paths; gold is a rarer power spike.
   void offerBossBuffChoices() {
     final random = math.Random();
-    final choices = List<BossBuffReward>.generate(3, (_) {
-      if (random.nextInt(100) < 10) {
-        return const BossBuffReward(BossBuffType.gold, 8);
-      }
-      final percent = 2 + random.nextInt(4);
-      return random.nextBool()
-          ? BossBuffReward(BossBuffType.green, percent)
-          : BossBuffReward(BossBuffType.purple, percent);
-    });
+    final choices = <BossBuffReward>[
+      const BossBuffReward(BossBuffType.green, 5),
+      const BossBuffReward(BossBuffType.purple, 5),
+      random.nextInt(100) < 15
+          ? const BossBuffReward(BossBuffType.gold, 10)
+          : BossBuffReward(
+              random.nextBool() ? BossBuffType.green : BossBuffType.purple,
+              4,
+            ),
+    ];
     onBossBuff?.call(choices);
   }
 
@@ -284,11 +337,16 @@ class PlayerState extends Node {
     switch (reward.type) {
       case BossBuffType.green:
       case BossBuffType.gold:
-        final multiplier = 1 + reward.percent / 100;
-        damageMultiplier *= multiplier;
+        _bossDamageBonus = (_bossDamageBonus + reward.percent / 100)
+            .clamp(0.0, GameBalance.maxRunDamageBonus)
+            .toDouble();
+        damageMultiplier = _equipmentDamageMultiplier + _bossDamageBonus;
         break;
       case BossBuffType.purple:
-        runFireRateMultiplier *= 1 + reward.percent / 100;
+        _bossFireRateBonus = (_bossFireRateBonus + reward.percent / 100)
+            .clamp(0.0, GameBalance.maxRunFireRateBonus)
+            .toDouble();
+        runFireRateMultiplier = 1.0 + _bossFireRateBonus;
         break;
     }
   }
@@ -329,6 +387,7 @@ class PlayerState extends Node {
 
   @override
   void update(double dt) {
+    if (_comboFrames > 0 && --_comboFrames == 0) resetCombo();
     if (_shieldFrames > 0) {
       _shieldFrames--;
     }
@@ -347,6 +406,9 @@ class PlayerState extends Node {
         ammoDamageMultiplier = 1.0;
         projectileColor = Colors.white;
       }
+    }
+    if (_adPowerFrames > 0 && --_adPowerFrames == 0) {
+      adDamageMultiplier = 1.0;
     }
     if (_magnetFrames > 0) {
       _magnetFrames--;
@@ -433,16 +495,16 @@ class HpDisplay extends Node {
   void update(double dt) {
     if (_dirtyHp) {
       removeAllChildren();
-      double xPos = 0.0;
-      for (int i = 0; i < _hp; i++) {
-        // We'll use a powerup shield icon as a makeshift heart/health icon since we don't have hearts
+      if (_hp > 0) {
+        // One armour indicator avoids implying that several shields are worn.
         Sprite hpSprite = Sprite(texture: _sheetUI["powerup_0.png"]!);
-        hpSprite.colorOverlay =
-            const Color.fromARGB(255, 255, 50, 50); // Red tint
+        hpSprite.colorOverlay = _hp == 1
+            ? const Color(0xFFFF3232)
+            : _hp == 2
+                ? const Color(0xFFFFB300)
+                : const Color(0xFF36E7FF);
         hpSprite.scale = 0.3;
-        hpSprite.position = Offset(xPos, 0.0);
         addChild(hpSprite);
-        xPos += 20.0;
       }
       _dirtyHp = false;
     }

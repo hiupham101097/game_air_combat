@@ -7,6 +7,7 @@ import 'package:mini__game2/model/custom_actions.dart';
 import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/flash.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
+import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/controller/power/power_bar.dart';
 import 'package:spritewidget/spritewidget.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -17,7 +18,7 @@ class EnemyBoss extends Obstacle {
     _sprite = Sprite(texture: f.sheet["enemy_boss_${level % 3}.png"]!);
     _sprite.scale = 0.32;
     addChild(_sprite);
-    maxDamage = 40.0 + 20.0 * level;
+    maxDamage = GameBalance.bossHealth(level, 0.90);
 
     constraints = <Constraint>[
       ConstraintRotationToNode(targetNode: f.level.ship, dampening: 0.05)

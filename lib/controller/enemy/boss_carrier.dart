@@ -8,6 +8,7 @@ import 'package:mini__game2/model/custom_actions.dart';
 import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/flash.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
+import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/controller/power/power_bar.dart';
 import 'package:spritewidget/spritewidget.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -20,7 +21,7 @@ class BossCarrier extends Obstacle {
     _sprite.colorOverlay = const Color(0x3300FF00); // Greenish
     addChild(_sprite);
 
-    maxDamage = 70.0 + 30.0 * _bossLevel; // Very tanky
+    maxDamage = GameBalance.bossHealth(_bossLevel, 1.05);
 
     _powerBar = PowerBar(const Size(80.0, 10.0));
     _powerBar.pivot = const Offset(0.5, 0.5);

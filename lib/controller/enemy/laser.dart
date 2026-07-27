@@ -10,7 +10,7 @@ class EnemyLaser extends Obstacle {
   /// Convert a normal math angle (0° points right) with `angle + 90`.
   EnemyLaser(
       GameObjectFactory f, double spriteRotation, double speed, Color color,
-      {bool highVisibility = false})
+      {bool highVisibility = false, double shipDamage = 1.0})
       : super(f) {
     _sprite = Sprite(texture: f.sheet["explosion_particle.png"]!);
     _sprite.scale = highVisibility ? 0.78 : 0.5;
@@ -23,6 +23,8 @@ class EnemyLaser extends Obstacle {
     radius = 8.0;
     canDamageShip = true;
     canBeDamaged = false;
+    isEnemyProjectile = true;
+    this.shipDamage = shipDamage;
 
     // Convert SpriteWidget rotation (0 = UP) to Math angle (0 = RIGHT)
     double rad = radians(spriteRotation - 90.0);

@@ -7,6 +7,7 @@ import 'package:mini__game2/model/custom_actions.dart';
 import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/flash.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
+import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/controller/power/power_bar.dart';
 import 'package:spritewidget/spritewidget.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -19,7 +20,7 @@ class BossLaser extends Obstacle {
     _sprite.colorOverlay = const Color(0x66FF0000); // Reddish tint
     addChild(_sprite);
 
-    maxDamage = 50.0 + 25.0 * level;
+    maxDamage = GameBalance.bossHealth(level, 0.95);
 
     constraints = <Constraint>[
       ConstraintRotationToNode(targetNode: f.level.ship, dampening: 0.1)
@@ -72,13 +73,13 @@ class BossLaser extends Obstacle {
       }
     } else if (_state == 2) {
       // Firing beam (rapid small lasers)
-      if (_stateTimer % 2 == 0) {
+      if (_stateTimer % 5 == 0) {
         f.sounds.playEffect("laser");
         // Convert the boss's math angle to EnemyLaser's SpriteWidget angle.
         EnemyLaser laser =
-            EnemyLaser(f, rotation + 90.0, 12.0, const Color(0xffff0000));
-        laser.radius = 15.0; // Big hitbox
-        laser.scale = 2.0;
+            EnemyLaser(f, rotation + 90.0, 9.0, const Color(0xffff0000));
+        laser.radius = 11.0;
+        laser.scale = 1.5;
 
         double rad = radians(rotation);
         Offset startOffset = Offset(math.cos(rad) * 30.0, math.sin(rad) * 30.0);
