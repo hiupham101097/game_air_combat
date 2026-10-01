@@ -40,6 +40,15 @@ class WeaponPickup extends Collectable {
       case WeaponType.nova:
         weaponColor = const Color(0xFFB060FF); // Violet
         break;
+      case WeaponType.phase:
+        weaponColor = const Color(0xFF55E8FF); // Phase cyan
+        break;
+      case WeaponType.arc:
+        weaponColor = const Color(0xFFB56CFF);
+        break;
+      case WeaponType.flak:
+        weaponColor = const Color(0xFFFFB44A);
+        break;
       default:
         weaponColor = const Color(0xFFFFFFFF); // White
     }

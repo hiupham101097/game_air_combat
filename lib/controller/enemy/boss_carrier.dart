@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
+import 'package:mini__game2/controller/enemy/boss_attack_patterns.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
 import 'package:mini__game2/controller/enemy/scout.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
@@ -41,6 +42,7 @@ class BossCarrier extends Obstacle {
   final int _bossLevel;
   int _spawnTimer = 120;
   int _attackTimer = 75;
+  double _lockedAngle = 0.0;
 
   int get _scoutLevel => (_bossLevel ~/ 3).clamp(0, 2);
 
@@ -57,21 +59,27 @@ class BossCarrier extends Obstacle {
 
     // The carrier must pressure the player itself; its scouts are support,
     // not its only attack. Fire a short spread at the player's position.
+    if (_attackTimer == 24) {
+      _lockedAngle = BossAttackPatterns.angleToShip(f, position);
+      BossAttackPatterns.telegraphAim(f, position,
+          color: const Color(0xFF72FF8A));
+    }
     if (_attackTimer <= 0) {
       f.sounds.playEffect("laser");
-      for (final offset in [-11.0, 0.0, 11.0]) {
-        final laser = EnemyLaser(
-          f,
-          rotation + offset + 90.0,
-          4.5 + (_bossLevel * 0.15),
-          const Color(0xFF72FF8A),
-        );
-        final radiansToPlayer = radians(rotation + offset);
-        laser.position = position +
-            Offset(
-                math.cos(radiansToPlayer) * 42, math.sin(radiansToPlayer) * 42);
-        f.level.addChild(laser);
-      }
+      BossAttackPatterns.fireFan(
+        f,
+        origin: position,
+        centerAngle: _lockedAngle,
+        count: 3,
+        spreadDegrees: 22.0,
+        speed: 4.5 + (_bossLevel * 0.15),
+        color: const Color(0xFF72FF8A),
+        motion: EnemyProjectileMotion.weaving,
+        weaveAmplitude: 3.0,
+        shipDamage: 0.8,
+        hitRadius: 7.0,
+        spawnDistance: 42.0,
+      );
       _attackTimer = (84 - _bossLevel * 3).clamp(42, 84);
     }
 

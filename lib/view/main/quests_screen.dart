@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:mini__game2/main.dart';
+import 'package:mini__game2/l10n/generated/app_localizations.dart';
+import 'package:mini__game2/l10n/game_localizations.dart';
 import 'package:mini__game2/model/quest.dart';
 
 class QuestsScreen extends StatefulWidget {
@@ -46,10 +48,11 @@ class _QuestsScreenState extends State<QuestsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('NHIỆM VỤ HẰNG NGÀY & HẰNG TUẦN',
+        title: Text(l10n.questsTitle,
             style: TextStyle(fontFamily: 'Orbitron')),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -58,7 +61,7 @@ class _QuestsScreenState extends State<QuestsScreen> {
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: Text(
-                'Coins: ${gameState.coins}',
+                l10n.coinsCount(gameState.coins),
                 style: const TextStyle(
                   fontFamily: 'Orbitron',
                   color: Colors.amber,
@@ -86,7 +89,7 @@ class _QuestsScreenState extends State<QuestsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    quest.period == QuestPeriod.daily ? 'DAILY' : 'WEEKLY',
+                    quest.period == QuestPeriod.daily ? l10n.daily : l10n.weekly,
                     style: TextStyle(
                       color: quest.period == QuestPeriod.daily
                           ? Colors.lightBlueAccent
@@ -96,7 +99,7 @@ class _QuestsScreenState extends State<QuestsScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(quest.description,
+                  Text(l10n.questDescription(quest),
                       style: const TextStyle(
                           color: Colors.white,
                           fontFamily: 'Orbitron',
@@ -114,7 +117,7 @@ class _QuestsScreenState extends State<QuestsScreen> {
                       Text('${quest.progress} / ${quest.target}',
                           style: const TextStyle(color: Colors.white70)),
                       if (quest.isClaimed)
-                        const Text('ĐÃ NHẬN',
+                        Text(l10n.claimed,
                             style: TextStyle(
                                 color: Colors.grey,
                                 fontWeight: FontWeight.bold))
@@ -129,11 +132,11 @@ class _QuestsScreenState extends State<QuestsScreen> {
                               gameState.store();
                             });
                           },
-                          child: Text('NHẬN ${quest.coinReward} XU',
+                          child: Text(l10n.claimReward(quest.coinReward),
                               style: const TextStyle(color: Colors.white)),
                         )
                       else
-                        Text('THƯỞNG: ${quest.coinReward} XU',
+                        Text(l10n.rewardCoins(quest.coinReward),
                             style: const TextStyle(color: Colors.amber)),
                     ],
                   )

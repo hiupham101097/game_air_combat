@@ -1,35 +1,107 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
 import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
+import 'package:mini__game2/model/combat_damage.dart';
 import 'package:spritewidget/spritewidget.dart';
 import 'package:vector_math/vector_math_64.dart';
 
 var _gameSizeHeight = 320.0;
 
 class Laser extends GameObject {
-  double impact = 0.0;
+  double _baseDamage = 0.0;
+  double _weaponModifier = 1.0;
+  double _buffModifier = 1.0;
+  int _remainingPierces = 0;
+  double _explosionRadius = 0.0;
+  final Set<GameObject> _hitTargets = <GameObject>{};
+  late final Sprite _trail;
+  bool lastHitWasCritical = false;
+  double lastHitDamage = 0.0;
+
+  double get impact => _baseDamage * _weaponModifier * _buffModifier;
+
+  /// Retains a simple override for support projectiles such as drone shots.
+  set impact(double value) {
+    _baseDamage = value;
+    _weaponModifier = 1.0;
+    _buffModifier = 1.0;
+  }
+
+  double get explosionRadius => _explosionRadius;
+
+  void setPierceCount(int count) => _remainingPierces = count;
+
+  void setExplosionRadius(double radius) => _explosionRadius = radius;
+
+  bool hasHitTarget(GameObject target) => _hitTargets.contains(target);
+
+  /// Returns true when this projectile survives to hit another target.
+  bool registerTargetHit(GameObject target) {
+    _hitTargets.add(target);
+    if (_remainingPierces < 0) return true;
+    if (_remainingPierces > 0) {
+      _remainingPierces--;
+      return true;
+    }
+    return false;
+  }
+
+  double damageForHit({double targetResistance = 0.0, double scale = 1.0}) {
+    final stats = f.playerState.combatStats;
+    final result = CombatDamagePipeline.resolve(
+      baseDamage: _baseDamage * scale,
+      weaponModifier: _weaponModifier,
+      buffModifier: _buffModifier,
+      criticalChance: stats.criticalChance,
+      criticalDamageMultiplier: stats.criticalDamageMultiplier,
+      targetResistance: targetResistance,
+    );
+    lastHitWasCritical = result.isCritical;
+    lastHitDamage = result.finalDamage;
+    return result.finalDamage;
+  }
+
+  void configureWeaponDamage(int level, {double baseMultiplier = 1.0}) {
+    _baseDamage = GameBalance.laserDamageMultiplier(level) * baseMultiplier;
+    _weaponModifier = f.playerState.equipmentDamageMultiplier *
+        f.playerState.weaponDamageMultiplier;
+    _buffModifier = f.playerState.runDamageBuffMultiplier *
+        f.playerState.ammoDamageMultiplier *
+        f.playerState.adDamageMultiplier;
+  }
 
   Laser(GameObjectFactory f, int level, double r) : super(f) {
     radius = 10.0; //Phạm vi đạn gây sát thương
     removeLimit = _gameSizeHeight * 5 + radius; //Tăng chiều dài đạn bắn ra
     canDamageShip = false;
     canBeDamaged = false;
-    impact = GameBalance.laserDamageMultiplier(level) *
-        f.playerState.damageMultiplier *
-        f.playerState.weaponDamageMultiplier *
-        f.playerState.ammoDamageMultiplier *
-        f.playerState.adDamageMultiplier;
+    final stats = f.playerState.combatStats;
+    configureWeaponDamage(level);
+    _remainingPierces = stats.pierceCount;
+    _explosionRadius = stats.explosionRadius;
 
     // Tăng tốc độ lase bắn
-    _offset = Offset(math.cos(radians(r)) * 8.0,
-        math.sin(radians(r)) * 8.0 - f.playerState.scrollSpeed);
+    final projectileSpeed = stats.projectileSpeedMultiplier;
+    _offset = Offset(
+      math.cos(radians(r)) * 8.0 * projectileSpeed,
+      math.sin(radians(r)) * 8.0 * projectileSpeed - f.playerState.scrollSpeed,
+    );
 
     // tăng kích thước đạn
     rotation = r + 90.0;
 
+    _trail = Sprite(texture: f.sheet['explosion_particle.png']!)
+      ..scaleX = 0.22
+      ..scaleY = 0.75
+      ..position = const Offset(0.0, 8.0)
+      ..opacity = 0.34
+      ..colorOverlay = const Color(0xFF83F7FF)
+      ..blendMode = ui.BlendMode.plus;
+    addChild(_trail);
     addLaserSprites(this, level, r, f.sheet);
     applyPickupTint();
   }
@@ -59,12 +131,7 @@ class Laser extends GameObject {
 class PiercingLaser extends Laser {
   PiercingLaser(GameObjectFactory f, int level, double r) : super(f, level, r) {
     canBeDamaged = false; // Never destroyed by impacts
-    impact = 10.0 *
-        GameBalance.laserDamageMultiplier(level) *
-        f.playerState.damageMultiplier *
-        f.playerState.weaponDamageMultiplier *
-        f.playerState.ammoDamageMultiplier *
-        f.playerState.adDamageMultiplier; // High damage
+    configureWeaponDamage(level, baseMultiplier: 10.0);
 
     // Tint the piercing laser purple
     for (Node child in children) {
@@ -85,12 +152,13 @@ class HomingLaser extends Laser {
   GameObject? target;
 
   HomingLaser(GameObjectFactory f, int level, double r) : super(f, level, r) {
-    impact = 0.8 *
-        GameBalance.laserDamageMultiplier(level) *
-        f.playerState.damageMultiplier *
-        f.playerState.weaponDamageMultiplier *
-        f.playerState.ammoDamageMultiplier *
-        f.playerState.adDamageMultiplier; // Slightly lower damage for homing
+    configureWeaponDamage(level, baseMultiplier: 0.8);
+    _trail
+      ..scaleX = 0.30
+      ..scaleY = 1.2
+      ..position = const Offset(0.0, 11.0)
+      ..opacity = 0.48
+      ..colorOverlay = const Color(0xFF29B6F6);
 
     // Tint the homing laser cyan
     for (Node child in children) {
@@ -147,12 +215,7 @@ class HomingLaser extends Laser {
 class PlasmaLaser extends Laser {
   PlasmaLaser(GameObjectFactory f, int level, double r) : super(f, level, r) {
     radius = 18.0;
-    impact = 3.0 *
-        GameBalance.laserDamageMultiplier(level) *
-        f.playerState.damageMultiplier *
-        f.playerState.weaponDamageMultiplier *
-        f.playerState.ammoDamageMultiplier *
-        f.playerState.adDamageMultiplier;
+    configureWeaponDamage(level, baseMultiplier: 3.0);
     for (final child in children) {
       if (child is Sprite) {
         child.scale = 1.35;
@@ -166,16 +229,82 @@ class PlasmaLaser extends Laser {
 class NovaLaser extends Laser {
   NovaLaser(GameObjectFactory f, int level, double r) : super(f, level, r) {
     radius = 26.0;
-    impact = 4.0 *
-        GameBalance.laserDamageMultiplier(level) *
-        f.playerState.damageMultiplier *
-        f.playerState.weaponDamageMultiplier *
-        f.playerState.ammoDamageMultiplier *
-        f.playerState.adDamageMultiplier;
+    configureWeaponDamage(level, baseMultiplier: 4.0);
     for (final child in children) {
       if (child is Sprite) {
         child.scale = 1.7;
         child.colorOverlay = const Color(0xFFB060FF);
+      }
+    }
+    applyPickupTint();
+  }
+}
+
+/// Heavy cyan shot used only by the Super Fighter's phase cannon.
+class PhaseLanceLaser extends Laser {
+  PhaseLanceLaser(GameObjectFactory f, int level, double r)
+      : super(f, level, r) {
+    radius = 18.0;
+    for (final child in children) {
+      if (child is Sprite) {
+        child.scale = 1.45;
+        child.colorOverlay = const Color(0xFF55E8FF);
+        child.blendMode = ui.BlendMode.plus;
+      }
+    }
+
+    final core = Sprite(texture: f.sheet['explosion_particle.png']!)
+      ..scale = 0.48
+      ..position = const Offset(0.0, 9.0)
+      ..colorOverlay = const Color(0xFFC7FBFF)
+      ..blendMode = ui.BlendMode.plus;
+    addChild(core);
+    applyPickupTint();
+  }
+}
+
+/// Rift Dancer bolt curves inward as it climbs, sweeping back across a lane.
+class RiftArcLaser extends Laser {
+  RiftArcLaser(GameObjectFactory f, int level, double angle)
+      : _curveDirection = angle < -90.0
+            ? 1.0
+            : angle > -90.0
+                ? -1.0
+                : 0.0,
+        super(f, level, angle) {
+    radius = 12.0;
+    configureWeaponDamage(level, baseMultiplier: 0.65);
+    for (final child in children) {
+      if (child is Sprite) {
+        child.scale = 1.05;
+        child.colorOverlay = const Color(0xFF72F5FF);
+        child.blendMode = ui.BlendMode.plus;
+      }
+    }
+    applyPickupTint();
+  }
+
+  final double _curveDirection;
+  double _age = 0.0;
+
+  @override
+  void move() {
+    super.move();
+    _age += 0.22;
+    position += Offset(math.sin(_age) * _curveDirection * 1.25, 0.0);
+  }
+}
+
+/// Bastion flak rounds trade single-shot damage for a five-lane burst.
+class FlakLaser extends Laser {
+  FlakLaser(GameObjectFactory f, int level, double angle)
+      : super(f, level, angle) {
+    radius = 16.0;
+    configureWeaponDamage(level, baseMultiplier: 0.48);
+    for (final child in children) {
+      if (child is Sprite) {
+        child.scale = 1.22;
+        child.colorOverlay = const Color(0xFFFFB44A);
       }
     }
     applyPickupTint();

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
+import 'package:mini__game2/controller/enemy/boss_attack_patterns.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
 import 'package:mini__game2/model/custom_actions.dart';
@@ -43,6 +44,7 @@ class BossLaser extends Obstacle {
 
   int _stateTimer = 180;
   int _state = 0; // 0: moving, 1: charging, 2: firing
+  double _chargeAngle = 0.0;
 
   @override
   void update(double dt) {
@@ -50,14 +52,24 @@ class BossLaser extends Obstacle {
 
     // This boss has no rotation constraint, so explicitly aim its beam at
     // the ship rather than leaving it on the default right-facing angle.
-    final toShip = f.level.ship.position - position;
-    rotation = degrees(math.atan2(toShip.dy, toShip.dx));
+    if (_state == 0) {
+      rotation = BossAttackPatterns.angleToShip(f, position);
+    } else if (_state == 1) {
+      rotation = _chargeAngle;
+    } else {
+      final sweep = math.sin((40 - _stateTimer).clamp(0, 40) / 40.0 * math.pi);
+      rotation = _chargeAngle + sweep * 9.0;
+    }
 
     if (_state == 0) {
       // Moving randomly
       if (_stateTimer <= 0) {
         _state = 1; // Start charging
         _stateTimer = 60; // 1 second charge
+        _chargeAngle = BossAttackPatterns.angleToShip(f, position);
+        rotation = _chargeAngle;
+        BossAttackPatterns.telegraphAim(f, position,
+            color: const Color(0xFFFF4A4A), extraLength: 80.0);
         _sprite.colorOverlay =
             const Color.fromARGB(150, 255, 255, 0); // Yellow warning
       }
@@ -76,9 +88,17 @@ class BossLaser extends Obstacle {
       if (_stateTimer % 5 == 0) {
         f.sounds.playEffect("laser");
         // Convert the boss's math angle to EnemyLaser's SpriteWidget angle.
-        EnemyLaser laser =
-            EnemyLaser(f, rotation + 90.0, 9.0, const Color(0xffff0000));
-        laser.radius = 11.0;
+        EnemyLaser laser = EnemyLaser(
+          f,
+          rotation + 90.0,
+          8.5,
+          const Color(0xffff0000),
+          motion: EnemyProjectileMotion.weaving,
+          weaveAmplitude: 1.5,
+          shipDamage: 0.7,
+          highVisibility: true,
+        );
+        laser.radius = 8.0;
         laser.scale = 1.5;
 
         double rad = radians(rotation);

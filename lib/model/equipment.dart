@@ -6,6 +6,10 @@ enum EquipmentSlot { core, armor, engine, drone }
 
 enum Rarity { common, rare, epic, legendary }
 
+enum ArmorPassive { none, heavy, energyShield, reactive, berserker }
+
+enum DroneRole { attack, shield, repair, missile, laser }
+
 enum GachaResultType { equipment, energyStones, energyCores }
 
 class GachaResult {
@@ -35,7 +39,11 @@ class EquipmentItem {
   // For drones (base values at level 1)
   final double droneFireRate; // attacks per second
   final double droneDamage;
-  final bool isHomingDrone;
+  final DroneRole droneRole;
+  final ArmorPassive armorPassive;
+  final double armorMovementMultiplier;
+  final double criticalChance;
+  final double skillChargeMultiplier;
 
   // Stat calculations based on level
   double getDamageMultiplier(int level) =>
@@ -74,7 +82,11 @@ class EquipmentItem {
     this.speedMultiplier = 0.0,
     this.droneFireRate = 0.0,
     this.droneDamage = 0.0,
-    this.isHomingDrone = false,
+    this.droneRole = DroneRole.attack,
+    this.armorPassive = ArmorPassive.none,
+    this.armorMovementMultiplier = 1.0,
+    this.criticalChance = 0.0,
+    this.skillChargeMultiplier = 1.0,
   });
 
   static Color getColorForRarity(Rarity r) {
@@ -111,6 +123,7 @@ class EquipmentItem {
       description: 'Tăng 25% sát thương',
       color: Colors.greenAccent,
       damageMultiplier: 0.25,
+      criticalChance: 0.05,
     ),
     EquipmentItem(
       id: 'core_3',
@@ -142,6 +155,7 @@ class EquipmentItem {
       price: 500,
       hpBonus: 1,
       damageReduction: 0.08,
+      armorPassive: ArmorPassive.reactive,
     ),
     EquipmentItem(
       id: 'armor_2',
@@ -152,6 +166,8 @@ class EquipmentItem {
       color: Colors.greenAccent,
       hpBonus: 2,
       damageReduction: 0.14,
+      armorPassive: ArmorPassive.heavy,
+      armorMovementMultiplier: 0.9,
     ),
     EquipmentItem(
       id: 'armor_3',
@@ -162,6 +178,7 @@ class EquipmentItem {
       color: Colors.purpleAccent,
       hpBonus: 3,
       damageReduction: 0.20,
+      armorPassive: ArmorPassive.energyShield,
     ),
     EquipmentItem(
       id: 'armor_4',
@@ -172,6 +189,7 @@ class EquipmentItem {
       color: Colors.orangeAccent,
       hpBonus: 5,
       damageReduction: 0.26,
+      armorPassive: ArmorPassive.berserker,
     ),
 
     // Engines
@@ -202,6 +220,7 @@ class EquipmentItem {
       description: 'Tăng 40% Tốc độ bay',
       color: Colors.purpleAccent,
       speedMultiplier: 0.4,
+      skillChargeMultiplier: 1.1,
     ),
 
     // Drones
@@ -224,6 +243,7 @@ class EquipmentItem {
       color: Colors.purpleAccent,
       droneFireRate: 3.0,
       droneDamage: 8.0,
+      droneRole: DroneRole.laser,
     ),
     EquipmentItem(
       id: 'drone_3',
@@ -234,7 +254,25 @@ class EquipmentItem {
       color: Colors.orangeAccent,
       droneFireRate: 5.0,
       droneDamage: 12.0,
-      isHomingDrone: true,
+      droneRole: DroneRole.missile,
+    ),
+    EquipmentItem(
+      id: 'drone_4',
+      name: 'Shield Drone',
+      slot: EquipmentSlot.drone,
+      rarity: Rarity.epic,
+      description: 'Briefly shields the ship every 15 seconds.',
+      color: Colors.cyanAccent,
+      droneRole: DroneRole.shield,
+    ),
+    EquipmentItem(
+      id: 'drone_5',
+      name: 'Repair Drone',
+      slot: EquipmentSlot.drone,
+      rarity: Rarity.legendary,
+      description: 'Restores one hull point every 30 seconds.',
+      color: Colors.lightGreenAccent,
+      droneRole: DroneRole.repair,
     ),
   ];
 

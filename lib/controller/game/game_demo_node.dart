@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/flash.dart';
@@ -9,10 +11,15 @@ import 'package:mini__game2/controller/enemy/laser.dart';
 import 'package:mini__game2/controller/game/game_level.dart';
 import 'package:mini__game2/controller/game/game_level_label.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
+import 'package:mini__game2/controller/game/rift_atmosphere.dart';
 import 'package:mini__game2/controller/game/game_objects.dart';
 import 'package:mini__game2/controller/game/game_ship.dart';
+import 'package:mini__game2/controller/game/near_miss_effect.dart';
+import 'package:mini__game2/controller/game/phase_shift_effect.dart';
 import 'package:mini__game2/controller/game/player_drone.dart';
+import 'package:mini__game2/l10n/generated/app_localizations.dart';
 import 'package:mini__game2/model/equipment.dart';
+import 'package:mini__game2/model/run_upgrade.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
 import 'package:mini__game2/controller/player_state.dart';
 import 'package:mini__game2/controller/repeated_image.dart';
@@ -25,18 +32,28 @@ import 'package:spritewidget/spritewidget.dart';
 typedef GameOverCallback = void Function(
     int score, int coins, int levelReached);
 typedef BossBuffCallback = void Function(List<BossBuffReward> choices);
+typedef RunLevelUpCallback = void Function(
+    int level, List<RunUpgradeReward> choices);
 
 class GameDemoNode extends NodeWithSize {
-  GameDemoNode(this._images, this._spritesGame, this._spritesUI, this._sounds,
-      this._gameState, this._isEventMode, this._gameOverCallback,
-      {this.onBossBuff, this.onReviveOffer})
+  final math.Random _shakeRandom = math.Random();
+
+  GameDemoNode(
+      this._images,
+      this._spritesGame,
+      this._spritesUI,
+      this._sounds,
+      this._gameState,
+      this._isEventMode,
+      this._localizations,
+      this._gameOverCallback,
+      {this.onBossBuff,
+      this.onRunLevelUp,
+      this.onReviveOffer})
       : super(const Size(320.0, 320.0)) {
-    // Add background - use fiery event background in Event Mode
-    if (_isEventMode) {
-      _background = RepeatedImage(_images["assets/event_bg.png"]!);
-    } else {
-      _background = RepeatedImage(_images["assets/starfield.png"]!);
-    }
+    // Both modes share the dimensional warfront; event mode changes the rift
+    // color and encounter pace instead of switching to an unrelated art style.
+    _background = RepeatedImage(_images["assets/space_warfield.png"]!);
     addChild(_background);
 
     // Create starfield
@@ -45,7 +62,11 @@ class GameDemoNode extends NodeWithSize {
 
     // Add nebula
     _nebula = RepeatedImage(_images["assets/nebula.png"]!, ui.BlendMode.plus);
+    _nebula.opacity = 0.2;
     addChild(_nebula);
+
+    _riftAtmosphere = RiftAtmosphere(eventMode: _isEventMode);
+    addChild(_riftAtmosphere);
 
     // Setup game screen, it will always be anchored to the bottom of the screen
     _gameScreen = Node();
@@ -57,9 +78,15 @@ class GameDemoNode extends NodeWithSize {
     _gameScreen.addChild(_level);
 
     // Add heads up display
-    _playerState = PlayerState(_spritesUI, _spritesGame, _gameState);
+    _playerState =
+        PlayerState(_spritesUI, _spritesGame, _gameState, _localizations);
     _playerState.coinMultiplier = _isEventMode ? 2 : 1;
-    _playerState.onBossBuff = onBossBuff;
+    _playerState.onBossBuff = (choices) {
+      if (onBossBuff == null) return;
+      _bossBuffChoicePending = true;
+      onBossBuff!(choices);
+    };
+    _playerState.onRunLevelUp = _presentRunLevelUp;
     _playerState.position = const Offset(0.0, 20.0);
     addChild(_playerState);
 
@@ -100,6 +127,7 @@ class GameDemoNode extends NodeWithSize {
 
   final PersistantGameState _gameState;
   final bool _isEventMode;
+  final AppLocalizations _localizations;
 
   // Resources
   final ImageMap _images;
@@ -110,10 +138,37 @@ class GameDemoNode extends NodeWithSize {
   // Callback
   final GameOverCallback _gameOverCallback;
   final BossBuffCallback? onBossBuff;
+  final RunLevelUpCallback? onRunLevelUp;
   final VoidCallback? onReviveOffer;
 
-  void chooseBossBuff(BossBuffReward reward) {
+  bool _bossBuffChoicePending = false;
+  int? _deferredRunUpgradeLevel;
+  List<RunUpgradeReward>? _deferredRunUpgradeChoices;
+
+  bool chooseBossBuff(BossBuffReward reward) {
     _playerState.applyBossBuff(reward);
+    _bossBuffChoicePending = false;
+    final deferredChoices = _deferredRunUpgradeChoices;
+    final deferredLevel = _deferredRunUpgradeLevel;
+    if (deferredChoices != null && deferredLevel != null) {
+      _deferredRunUpgradeChoices = null;
+      _deferredRunUpgradeLevel = null;
+      onRunLevelUp?.call(deferredLevel, deferredChoices);
+      return true;
+    }
+    return false;
+  }
+
+  bool chooseRunUpgrade(RunUpgradeReward reward) =>
+      _playerState.applyRunUpgrade(reward);
+
+  void _presentRunLevelUp(int level, List<RunUpgradeReward> choices) {
+    if (_bossBuffChoicePending) {
+      _deferredRunUpgradeLevel = level;
+      _deferredRunUpgradeChoices = choices;
+      return;
+    }
+    onRunLevelUp?.call(level, choices);
   }
 
   // Game screen nodes
@@ -126,6 +181,7 @@ class GameDemoNode extends NodeWithSize {
   late StarField _starField;
   late RepeatedImage _background;
   late RepeatedImage _nebula;
+  late RiftAtmosphere _riftAtmosphere;
   late PlayerState _playerState;
 
   // Game properties
@@ -138,11 +194,15 @@ class GameDemoNode extends NodeWithSize {
   bool _reviveUsed = false;
   bool _gameOverReported = false;
   final List<Node> _combatFrozenForRevive = <Node>[];
+  double _screenShakeRemaining = 0.0;
+  double _screenShakeDuration = 0.0;
+  double _screenShakeStrength = 0.0;
+  Offset _screenShakeOffset = Offset.zero;
 
   @override
   void spriteBoxPerformedLayout() {
     gameSizeHeight = spriteBox!.visibleArea!.height;
-    _gameScreen.position = Offset(0.0, gameSizeHeight);
+    _gameScreen.position = Offset(0.0, gameSizeHeight) + _screenShakeOffset;
   }
 
   bool _isPaused = false;
@@ -176,11 +236,110 @@ class GameDemoNode extends NodeWithSize {
 
   bool get isPaused => _isPaused;
 
+  ValueListenable<int> get riftChargeNotifier =>
+      _playerState.riftChargeNotifier;
+  final ValueNotifier<int> phaseShiftCooldownNotifier = ValueNotifier<int>(0);
+  int _phaseShiftCooldownFrames = 0;
+  int _phaseShiftMovementFrames = 0;
+  double _phaseShiftHorizontalOffset = 0.0;
+
+  ValueListenable<int> get phaseShiftCooldown => phaseShiftCooldownNotifier;
+
+  bool activatePhaseShift() {
+    if (_gameOver || _isPaused || _phaseShiftCooldownFrames > 0) return false;
+
+    final ship = _level.ship;
+    final start = ship.position;
+    var direction = _joystick.value.dx.abs() > 0.15
+        ? _joystick.value.dx.sign
+        : (start.dx <= 0.0 ? 1.0 : -1.0);
+    var targetX = (start.dx + direction * 82.0).clamp(-145.0, 145.0);
+    if ((targetX - start.dx).abs() < 2.0) {
+      direction = -direction;
+      targetX = (start.dx + direction * 82.0).clamp(-145.0, 145.0);
+    }
+    final end = Offset(targetX.toDouble(), start.dy);
+    final distance = (end.dx - start.dx).abs();
+    if (distance < 2.0) return false;
+
+    _phaseShiftHorizontalOffset = end.dx - start.dx;
+    _phaseShiftMovementFrames = 24;
+    _phaseShiftCooldownFrames = (360.0 *
+            _playerState.combatStats.skillCooldownMultiplier.clamp(0.5, 2.0))
+        .round();
+    phaseShiftCooldownNotifier.value =
+        (_phaseShiftCooldownFrames / 60.0).ceil();
+    _playerState.hpInvincibilityFrames =
+        math.max(_playerState.hpInvincibilityFrames, 36).toInt();
+
+    final directionSign = end.dx >= start.dx ? 1.0 : -1.0;
+    _level.addChild(PhaseShiftTrail(
+      direction: directionSign,
+      distance: distance,
+    )..position = Offset((start.dx + end.dx) / 2.0, start.dy));
+    _level.addChild(PhaseShiftPulse()..position = end);
+
+    // The phase blade erases projectiles along its lane and clips nearby
+    // invaders, giving the dodge a clear offensive reward.
+    final targets = List<Node>.from(_level.children);
+    for (final node in targets) {
+      if (node is! GameObject || node.parent == null) continue;
+      final closestX = node.position.dx
+          .clamp(math.min(start.dx, end.dx), math.max(start.dx, end.dx))
+          .toDouble();
+      final distanceToLane =
+          (node.position - Offset(closestX, start.dy)).distance;
+      if (distanceToLane > node.radius + 12.0) continue;
+
+      if (node is EnemyLaser) {
+        node.destroy();
+      } else if (node.canBeDamaged &&
+          node.canDamageShip &&
+          !node.isEnemyProjectile &&
+          !node.grantsBossBuff) {
+        final damage = node.maxDamage *
+            (0.3 * _playerState.combatStats.damageMultiplier)
+                .clamp(0.1, 0.65)
+                .toDouble();
+        node.addDamage(damage);
+        if (node.parent != null) {
+          _level.addChild(DamageNumberEffect(damage, critical: false)
+            ..position = node.position);
+        }
+      }
+    }
+    _sounds.playEffect('laser');
+    return true;
+  }
+
+  bool activateRiftBurst() {
+    if (_gameOver || _isPaused || !_playerState.spendRiftCharge()) return false;
+
+    _objectFactory.clearEnemyProjectiles();
+    _playerState.hpInvincibilityFrames =
+        math.max(_playerState.hpInvincibilityFrames, 75).toInt();
+    _sounds.playEffect('explosion_boss');
+    addChild(Flash(size, 0.55));
+
+    final targets = List<Node>.from(_level.children);
+    for (final node in targets) {
+      if (node is GameObject &&
+          node.canBeDamaged &&
+          node.canDamageShip &&
+          !node.isEnemyProjectile &&
+          !node.grantsBossBuff) {
+        node.addDamage(node.maxDamage * 0.30);
+      }
+    }
+    return true;
+  }
+
   @override
   void update(double dt) {
     // A regular pause or popup freezes the entire simulation. During the
     // revival offer, only combat actors are frozen; fired projectiles keep
     // travelling naturally while the ship is destroyed.
+    if (!_isPaused) _advanceScreenShake(dt);
     if (_isPaused || _gameOver) return;
     // Scroll the level
     _scroll = _level.scroll(_playerState.scrollSpeed);
@@ -188,13 +347,28 @@ class GameDemoNode extends NodeWithSize {
 
     _background.move(_playerState.scrollSpeed * 0.1);
     _nebula.move(_playerState.scrollSpeed);
+    _riftAtmosphere.advance(dt, _playerState.scrollSpeed);
+
+    if (_phaseShiftCooldownFrames > 0) {
+      _phaseShiftCooldownFrames--;
+      final secondsLeft = (_phaseShiftCooldownFrames / 60.0).ceil();
+      if (phaseShiftCooldownNotifier.value != secondsLeft) {
+        phaseShiftCooldownNotifier.value = secondsLeft;
+      }
+    }
+    if (_phaseShiftMovementFrames > 0) {
+      _phaseShiftMovementFrames--;
+    } else {
+      _phaseShiftHorizontalOffset = 0.0;
+    }
 
     // Add objects
     addObjects();
 
     // Move the ship
     if (!_gameOver) {
-      _level.ship.applyThrust(_joystick.value, _scroll);
+      _level.ship.applyThrust(_joystick.value, _scroll,
+          horizontalOffset: _phaseShiftHorizontalOffset);
     }
 
     // Add shots
@@ -206,9 +380,7 @@ class GameDemoNode extends NodeWithSize {
       if (_playerState.currentWeapon == WeaponType.rapid) {
         baseFrames = (baseFrames * 0.45).round();
       }
-      _framesToFire = (baseFrames /
-              (_level.ship.fireRateMultiplier *
-                  _playerState.runFireRateMultiplier))
+      _framesToFire = (baseFrames / _playerState.combatStats.fireRateMultiplier)
           .round()
           .clamp(1, baseFrames);
     }
@@ -276,10 +448,26 @@ class GameDemoNode extends NodeWithSize {
 
     for (Laser laser in lasers) {
       for (GameObject damageable in damageables) {
-        if (laser.collidingWith(damageable)) {
-          // Hit something that can take damage
-          damageable.addDamage(laser.impact);
+        if (damageable.parent == null ||
+            laser.hasHitTarget(damageable) ||
+            !laser.collidingWith(damageable)) {
+          continue;
+        }
+
+        _applyDamageFromLaser(laser, damageable);
+        if (laser.explosionRadius > 0.0) {
+          for (final nearby in damageables) {
+            if (nearby == damageable || nearby.parent == null) continue;
+            if ((nearby.position - damageable.position).distance <=
+                laser.explosionRadius + nearby.radius) {
+              _applyDamageFromLaser(laser, nearby, scale: 0.35);
+            }
+          }
+        }
+
+        if (!laser.registerTargetHit(damageable)) {
           laser.destroy();
+          break;
         }
       }
     }
@@ -288,7 +476,26 @@ class GameDemoNode extends NodeWithSize {
     List<Node> nodes = List<Node>.from(_level.children);
     for (Node node in nodes) {
       if (node is GameObject && node.canDamageShip) {
-        if (node.collidingWith(_level.ship)) {
+        final distance = (node.position - _level.ship.position).distance;
+        final contactDistance = node.radius + _level.ship.radius;
+
+        // Reward a projectile only after it has passed the ship. The brief
+        // cooldown prevents dense patterns from flooding the score and HUD.
+        if (node is EnemyLaser &&
+            !node.nearMissAwarded &&
+            !_playerState.shieldActive &&
+            distance > contactDistance &&
+            distance <= contactDistance + 18.0 &&
+            node.isMovingAwayFrom(_level.ship.position)) {
+          final bonus = _playerState.awardNearMiss();
+          if (bonus != null) {
+            node.nearMissAwarded = true;
+            _level.addChild(NearMissEffect(_localizations.nearMissBonus(bonus))
+              ..position = node.position);
+          }
+        }
+
+        if (distance < contactDistance) {
           if (_playerState.shieldActive) {
             // Hit, but saved by the shield! Only destroy non-boss enemies
             if (!node.grantsBossBuff) {
@@ -309,6 +516,55 @@ class GameDemoNode extends NodeWithSize {
     }
   }
 
+  void _startScreenShake(double strength, double duration) {
+    if (strength >= _screenShakeStrength || _screenShakeRemaining <= 0.0) {
+      _screenShakeStrength = strength;
+    }
+    _screenShakeDuration = math.max(_screenShakeDuration, duration).toDouble();
+    _screenShakeRemaining = math.max(_screenShakeRemaining, duration);
+  }
+
+  void _advanceScreenShake(double dt) {
+    if (_screenShakeRemaining <= 0.0) {
+      _screenShakeStrength = 0.0;
+      _screenShakeOffset = Offset.zero;
+      _gameScreen.position = Offset(0.0, gameSizeHeight);
+      return;
+    }
+
+    _screenShakeRemaining =
+        math.max(0.0, _screenShakeRemaining - dt).toDouble();
+    final fade = _screenShakeDuration <= 0.0
+        ? 0.0
+        : _screenShakeRemaining / _screenShakeDuration;
+    _screenShakeOffset = Offset(
+      (_shakeRandom.nextDouble() * 2.0 - 1.0) * _screenShakeStrength * fade,
+      (_shakeRandom.nextDouble() * 2.0 - 1.0) * _screenShakeStrength * fade,
+    );
+    _gameScreen.position = Offset(0.0, gameSizeHeight) + _screenShakeOffset;
+  }
+
+  void _applyDamageFromLaser(Laser laser, GameObject target,
+      {double scale = 1.0}) {
+    final damage = laser.damageForHit(
+      targetResistance: target.damageResistance,
+      scale: scale,
+    );
+    target.addDamage(damage);
+    _level.addChild(
+      DamageNumberEffect(damage, critical: laser.lastHitWasCritical)
+        ..position = target.position,
+    );
+    if (laser.lastHitWasCritical) {
+      _startScreenShake(1.5, 0.08);
+      _level.addChild(
+        NearMissEffect(_localizations.criticalHit,
+            accentColor: Colors.amberAccent)
+          ..position = target.position + const Offset(0.0, -12.0),
+      );
+    }
+  }
+
   int _chunk = 0;
 
   void addObjects() {
@@ -323,11 +579,13 @@ class GameDemoNode extends NodeWithSize {
     int level = chunk ~/ chunksPerLevel + _gameState.currentStartingLevel;
     int part = chunk % chunksPerLevel;
     final displayedLevel = level + 1;
+    _riftAtmosphere.setSector((level ~/ 3).clamp(0, 3).toInt());
 
     if (_isEventMode) {
       // ⚡ EVENT MODE: Boss Rush — faster and more intense
       if (part == 0) {
-        LevelLabel lbl = LevelLabel(_objectFactory, displayedLevel);
+        LevelLabel lbl =
+            LevelLabel(_objectFactory, displayedLevel, _localizations);
         lbl.position = Offset(0.0, yPos + chunkSpacing / 2.0 - 150.0);
         _topLevelReached = level;
         _level.addChild(lbl);
@@ -361,7 +619,8 @@ class GameDemoNode extends NodeWithSize {
     } else {
       // Normal Mode
       if (part == 0) {
-        LevelLabel lbl = LevelLabel(_objectFactory, displayedLevel);
+        LevelLabel lbl =
+            LevelLabel(_objectFactory, displayedLevel, _localizations);
         lbl.position = Offset(0.0, yPos + chunkSpacing / 2.0 - 150.0);
         _topLevelReached = level;
         _level.addChild(lbl);
@@ -404,10 +663,11 @@ class GameDemoNode extends NodeWithSize {
   void fire() {
     int laserLevel = _objectFactory.playerState.laserLevel;
     WeaponType currentWeapon = _playerState.currentWeapon;
+    final weaponProfile = WeaponConfig.weapons[currentWeapon]!;
+    final weaponAngles = _fanAngles(weaponProfile);
 
     if (currentWeapon == WeaponType.spread) {
-      // Spread Gun
-      for (double angle in [-110.0, -90.0, -70.0]) {
+      for (final angle in weaponAngles) {
         Laser shot = Laser(_objectFactory, laserLevel, angle);
         shot.position = _level.ship.position + const Offset(0, -10.0);
         _level.addChild(shot);
@@ -418,39 +678,63 @@ class GameDemoNode extends NodeWithSize {
       shot.position = _level.ship.position + const Offset(0, -10.0);
       _level.addChild(shot);
     } else if (currentWeapon == WeaponType.homing) {
-      // Homing Missiles
-      Laser shot0 = HomingLaser(_objectFactory, laserLevel, -100.0);
-      shot0.position = _level.ship.position + const Offset(17.0, -10.0);
-      _level.addChild(shot0);
-
-      Laser shot1 = HomingLaser(_objectFactory, laserLevel, -80.0);
-      shot1.position = _level.ship.position + const Offset(-17.0, -10.0);
-      _level.addChild(shot1);
+      for (final angle in weaponAngles) {
+        final side = angle < -90.0 ? -17.0 : 17.0;
+        final shot = HomingLaser(_objectFactory, laserLevel, angle)
+          ..position = _level.ship.position + Offset(side, -10.0);
+        _level.addChild(shot);
+      }
     } else if (currentWeapon == WeaponType.plasma) {
-      // Phoenix: twin heavy plasma cannons.
-      for (final angle in [-96.0, -84.0]) {
+      for (final angle in weaponAngles) {
         final shot = PlasmaLaser(_objectFactory, laserLevel, angle);
         shot.position =
             _level.ship.position + Offset(angle < -90.0 ? -14.0 : 14.0, -14.0);
         _level.addChild(shot);
       }
     } else if (currentWeapon == WeaponType.nova) {
-      // Guardian: four broad Nova beams.
-      for (final angle in [-112.0, -97.0, -83.0, -68.0]) {
+      for (final angle in weaponAngles) {
         final shot = NovaLaser(_objectFactory, laserLevel, angle);
         shot.position =
             _level.ship.position + Offset(angle < -90.0 ? -12.0 : 12.0, -12.0);
         _level.addChild(shot);
       }
+    } else if (currentWeapon == WeaponType.phase) {
+      final shot = PhaseLanceLaser(_objectFactory, laserLevel, -90.0);
+      shot.position = _level.ship.position + const Offset(0.0, -14.0);
+      _level.addChild(shot);
+    } else if (currentWeapon == WeaponType.arc) {
+      for (final angle in weaponAngles) {
+        final shot = RiftArcLaser(_objectFactory, laserLevel, angle);
+        shot.position = _level.ship.position +
+            Offset(
+                angle < -90.0
+                    ? -12.0
+                    : angle > -90.0
+                        ? 12.0
+                        : 0.0,
+                -12.0);
+        _level.addChild(shot);
+      }
+    } else if (currentWeapon == WeaponType.flak) {
+      for (final angle in weaponAngles) {
+        final shot = FlakLaser(_objectFactory, laserLevel, angle);
+        shot.position = _level.ship.position +
+            Offset(
+                angle < -90.0
+                    ? -14.0
+                    : angle > -90.0
+                        ? 14.0
+                        : 0.0,
+                -12.0);
+        _level.addChild(shot);
+      }
     } else {
-      // Basic Laser
-      Laser shot0 = Laser(_objectFactory, laserLevel, -90.0);
-      shot0.position = _level.ship.position + const Offset(17.0, -10.0);
-      _level.addChild(shot0);
-
-      Laser shot1 = Laser(_objectFactory, laserLevel, -90.0);
-      shot1.position = _level.ship.position + const Offset(-17.0, -10.0);
-      _level.addChild(shot1);
+      for (var index = 0; index < weaponAngles.length; index++) {
+        final side = index.isEven ? -17.0 : 17.0;
+        final shot = Laser(_objectFactory, laserLevel, weaponAngles[index])
+          ..position = _level.ship.position + Offset(side, -10.0);
+        _level.addChild(shot);
+      }
     }
 
     if (_playerState.sideLaserActive) {
@@ -463,22 +747,45 @@ class GameDemoNode extends NodeWithSize {
       _level.addChild(shot3);
     }
 
-    for (var index = 0; index < _playerState.extraVolleyShots; index++) {
-      final angle = -118.0 +
-          (index * (56.0 / (_playerState.extraVolleyShots - 1).clamp(1, 99)));
+    final extraShotCount = _playerState.extraVolleyShots;
+    final extraShotStep =
+        extraShotCount <= 1 ? 0.0 : 56.0 / (extraShotCount - 1);
+    for (var index = 0; index < extraShotCount; index++) {
+      final angle =
+          extraShotCount == 1 ? -90.0 : -118.0 + index * extraShotStep;
       final shot = Laser(_objectFactory, laserLevel, angle);
       shot.position = _level.ship.position + const Offset(0.0, -8.0);
       _level.addChild(shot);
     }
   }
 
+  List<double> _fanAngles(Weapon weapon) {
+    final count = weapon.projectileCount.clamp(1, 16).toInt();
+    if (count == 1 || weapon.spreadDegrees <= 0) {
+      return List<double>.filled(count, -90.0, growable: false);
+    }
+    final start = -90.0 - weapon.spreadDegrees / 2.0;
+    final step = weapon.spreadDegrees / (count - 1);
+    return List<double>.generate(count, (index) => start + step * index,
+        growable: false);
+  }
+
   void takeShipDamage(double rawDamage) {
     // Several projectiles can overlap in one frame. The first fatal hit owns
     // the game-over flow; later hits must not create extra end-run timers.
     if (_gameOver) return;
+    if (_playerState.tryBlockReactiveHit()) {
+      _startScreenShake(2.5, 0.10);
+      _sounds.playEffect("pickup_powerup");
+      final blockEffect = ExplosionMini(_spritesGame)
+        ..position = _level.ship.position;
+      _level.addChild(blockEffect);
+      return;
+    }
     final lostHp = _playerState.takeShipDamage(rawDamage);
     if (lostHp == 0) return;
 
+    _startScreenShake(5.0, 0.16);
     _playerState.hpInvincibilityFrames = 75;
     _sounds.playEffect("explosion_player");
 

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:mini__game2/l10n/generated/app_localizations.dart';
 
 class SplashScreen extends StatefulWidget {
   final VoidCallback onComplete;
@@ -116,6 +117,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -334,10 +336,10 @@ class _SplashScreenState extends State<SplashScreen>
                             const SizedBox(height: 14),
                             Text(
                               _progressController.value < 0.4
-                                  ? 'INITIALIZING...'
+                                  ? l10n.splashInitializing
                                   : _progressController.value < 0.75
-                                      ? 'LOADING ASSETS...'
-                                      : 'READY TO LAUNCH',
+                                      ? l10n.splashLoadingAssets
+                                      : l10n.splashReady,
                               style: const TextStyle(
                                 color: Color(0xFF6655AA),
                                 fontSize: 11,

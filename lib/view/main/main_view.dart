@@ -15,6 +15,7 @@ class MainScene extends StatefulWidget {
     required this.onUpgradeLaser,
     required this.onStartLevelUp,
     required this.onStartLevelDown,
+    required this.onLocaleChanged,
   }) : super(key: key);
 
   final PersistantGameState gameState;
@@ -22,6 +23,7 @@ class MainScene extends StatefulWidget {
   final VoidCallback onUpgradeLaser;
   final VoidCallback onStartLevelUp;
   final VoidCallback onStartLevelDown;
+  final ValueChanged<String> onLocaleChanged;
 
   @override
   State<MainScene> createState() => MainSceneState();
@@ -63,6 +65,7 @@ class MainSceneState extends State<MainScene> {
                         height: 98.0,
                         child: TopBar(
                           gameState: widget.gameState,
+                          onLocaleChanged: widget.onLocaleChanged,
                         ),
                       ),
                       Expanded(

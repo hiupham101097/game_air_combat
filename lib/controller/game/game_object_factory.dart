@@ -128,7 +128,7 @@ class GameObjectFactory {
   void addEliteEnemyWave(int level, double yPos) {
     // Mini- and major-boss types are scheduled by the level flow, never
     // selected randomly as a regular elite wave.
-    const regularEliteTypes = 4;
+    const regularEliteTypes = 10;
     final unlockedTypes = (level - 1).clamp(1, regularEliteTypes);
     final count = level >= 7 ? 2 : 1;
     for (var index = 0; index < count; index++) {

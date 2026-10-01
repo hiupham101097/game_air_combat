@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:mini__game2/l10n/generated/app_localizations.dart';
 
 class LeaderboardScreen extends StatelessWidget {
   const LeaderboardScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     // Mock data for leaderboard
     final List<Map<String, dynamic>> topPlayers = [
       {"name": "Player One", "score": 15000},
@@ -17,7 +19,8 @@ class LeaderboardScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('BẢNG XẾP HẠNG', style: TextStyle(fontFamily: 'Orbitron')),
+        title: Text(l10n.leaderboardTitle,
+            style: const TextStyle(fontFamily: 'Orbitron')),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),

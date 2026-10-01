@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
+import 'package:mini__game2/l10n/generated/app_localizations.dart';
 import 'package:mini__game2/main.dart';
 import 'package:mini__game2/view/body/display.dart';
 import 'package:mini__game2/view/widgets.dart';
@@ -28,39 +29,43 @@ class CenterArea extends StatelessWidget {
   }
 
   Widget _buildUpgradePanel(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       key: const Key("upgradePanel"),
       children: <Widget>[
-        const Text(
-          "Nâng cấp laze",
+        Text(
+          l10n.upgradeLaser,
           style: TextStyle(fontSize: 14),
         ),
         _buildLaserUpgradeButton(),
-        const Text(
-          "Nâng cấp sức mạnh",
+        Text(
+          l10n.upgradePowerups,
           style: TextStyle(fontSize: 14),
         ),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: <Widget>[
-          _buildPowerUpButton(PowerUpType.shield),
-          _buildPowerUpButton(PowerUpType.sideLaser),
-          _buildPowerUpButton(PowerUpType.speedBoost),
-          _buildPowerUpButton(PowerUpType.speedLaser),
+          _buildPowerUpButton(context, PowerUpType.shield),
+          _buildPowerUpButton(context, PowerUpType.sideLaser),
+          _buildPowerUpButton(context, PowerUpType.speedBoost),
+          _buildPowerUpButton(context, PowerUpType.speedLaser),
         ]),
         const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildMenuButton(context, 'KHO ĐỒ', '/inventory', Colors.blue),
-            _buildMenuButton(context, 'NHIỆM VỤ', '/quests', Colors.orange),
-            _buildMenuButton(context, 'XẾP HẠNG', '/leaderboard', Colors.purple),
+            _buildMenuButton(
+                context, l10n.inventory, '/inventory', Colors.blue),
+            _buildMenuButton(context, l10n.quests, '/quests', Colors.orange),
+            _buildMenuButton(
+                context, l10n.leaderboard, '/leaderboard', Colors.purple),
           ],
         ),
         const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildMenuButton(context, 'TÀI KHOẢN', '/account', Colors.green),
+            _buildMenuButton(context, l10n.account, '/account', Colors.green),
+            _buildMenuButton(context, l10n.story, '/story', Colors.cyan),
           ],
         )
       ],
@@ -88,7 +93,8 @@ class CenterArea extends StatelessWidget {
     );
   }
 
-  Widget _buildPowerUpButton(PowerUpType type) {
+  Widget _buildPowerUpButton(BuildContext context, PowerUpType type) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Column(
@@ -106,7 +112,7 @@ class CenterArea extends StatelessWidget {
           ),
           Padding(
               padding: const EdgeInsets.all(3.0),
-              child: Text("Cấp ${gameState.powerupLevel(type) + 1}",
+              child: Text(l10n.powerUpLevel(gameState.powerupLevel(type) + 1),
                   style: const TextStyle(fontSize: 10.0)))
         ],
       ),

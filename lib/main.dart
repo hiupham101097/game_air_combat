@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
 import 'package:mini__game2/controller/rewarded_ad_service.dart';
 import 'package:mini__game2/controller/setting/sound_assets.dart';
+import 'package:mini__game2/l10n/generated/app_localizations.dart';
 import 'package:mini__game2/view/game/game_demo.dart';
 import 'package:mini__game2/view/main/splash_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 ///khai báo 1 lân đề dùng chung
@@ -73,6 +75,7 @@ main() async {
     'assets/sprites.png',
     'assets/ships.png',
     'assets/starfield.png',
+    'assets/space_warfield.png',
     'assets/game_ui.png',
     'assets/ui_bg_top.png',
     'assets/ui_bg_bottom.png',
@@ -85,6 +88,12 @@ main() async {
     'assets/boss_colossus_clean.png',
     'assets/event_bg.png',
     'assets/enemy_drone_mite.png',
+    'assets/enemies/enemy_rift_leech.png',
+    'assets/enemies/enemy_shard_brood.png',
+    'assets/enemies/enemy_rift_warden.png',
+    'assets/ships/ship_superfighter.png',
+    'assets/ships/ship_rift_dancer.png',
+    'assets/ships/ship_bastion.png',
   ]);
   // Tải âm anh
   await settingSound();
@@ -148,19 +157,44 @@ class SplashWrapper extends StatefulWidget {
 
 class _SplashWrapperState extends State<SplashWrapper> {
   bool _showGame = false;
+  Locale? _locale;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocale();
+  }
+
+  Future<void> _loadLocale() async {
+    final preferences = await SharedPreferences.getInstance();
+    final languageCode = preferences.getString('app_language') ?? 'system';
+    if (!mounted) return;
+    setState(() {
+      _locale = languageCode == 'system' ? null : Locale(languageCode);
+    });
+  }
+
+  void _setLocale(String languageCode) {
+    setState(() {
+      _locale = languageCode == 'system' ? null : Locale(languageCode);
+    });
+    SharedPreferences.getInstance().then(
+      (preferences) => preferences.setString('app_language', languageCode),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (_showGame) {
-      return const GameDemo();
-    }
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: SplashScreen(
-        onComplete: () {
-          setState(() => _showGame = true);
-        },
-      ),
+      locale: _locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: _showGame
+          ? GameDemo(onLocaleChanged: _setLocale)
+          : SplashScreen(
+              onComplete: () => setState(() => _showGame = true),
+            ),
     );
   }
 }

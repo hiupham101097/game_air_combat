@@ -42,13 +42,14 @@ class PlayerDrone extends GameObject {
     engineGlow.motions.run(MotionRepeatForever(motion: pulse));
 
     // Guard against zero or negative fire rate
-    final fireRate = equipment.getDroneFireRate(level);
+    final fireRate = f.playerState.combatStats.droneFireRate;
     _fireDelay = fireRate > 0 ? (60.0 / fireRate).round() : 60;
   }
 
   late Sprite _sprite;
   int _fireCooldown = 0;
   int _fireDelay = 60;
+  int _repairCooldownFrames = 1800;
 
   // Visual bobbing effect
   double _time = 0.0;
@@ -72,6 +73,16 @@ class PlayerDrone extends GameObject {
       return;
     }
 
+    if (equipment.droneRole == DroneRole.shield) return;
+    if (equipment.droneRole == DroneRole.repair) {
+      // Only the left drone repairs, preventing duplicate passive healing.
+      if (isLeftSide && --_repairCooldownFrames <= 0) {
+        if (f.playerState.hp < f.playerState.maxHp) f.playerState.hp++;
+        _repairCooldownFrames = 1800;
+      }
+      return;
+    }
+
     // Handle firing
     _fireCooldown--;
     if (_fireCooldown <= 0) {
@@ -84,7 +95,7 @@ class PlayerDrone extends GameObject {
     // Determine target
     double angle = -90.0; // Default shoot up
 
-    if (equipment.isHomingDrone) {
+    if (equipment.droneRole == DroneRole.missile) {
       // Find nearest enemy
       double minD = double.infinity;
       GameObject? target;
@@ -108,14 +119,19 @@ class PlayerDrone extends GameObject {
 
     // Spawn laser
     Laser shot;
-    if (equipment.isHomingDrone) {
+    if (equipment.droneRole == DroneRole.missile) {
       shot = HomingLaser(f, f.playerState.laserLevel, angle);
     } else {
       shot = Laser(f, f.playerState.laserLevel, angle);
     }
 
     // Override damage with drone damage
-    shot.impact = equipment.droneDamage * f.playerState.damageMultiplier;
+    final stats = f.playerState.combatStats;
+    shot.impact = stats.droneDamage *
+        f.playerState.equipmentDamageMultiplier *
+        f.playerState.runDamageBuffMultiplier;
+    shot.setPierceCount(0);
+    shot.setExplosionRadius(0.0);
     shot.position = position + const Offset(0, -10.0);
 
     // Make drone lasers visually distinct (smaller or colored)

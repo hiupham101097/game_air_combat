@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
+import 'package:mini__game2/controller/enemy/boss_attack_patterns.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
 import 'package:mini__game2/model/custom_actions.dart';
@@ -41,12 +42,24 @@ class EnemyBoss extends Obstacle {
 
   int _countDown = randomInt(120) + 240;
   int _currentPhase = 1;
+  double _lockedAngle = 0.0;
 
   @override
   void update(double dt) {
     _countDown -= 1;
+    if (_countDown == 24) {
+      if (_currentPhase == 3) {
+        BossAttackPatterns.telegraphRadial(f, position,
+            color: const Color(0xFFFF6C86));
+      } else {
+        _lockedAngle = BossAttackPatterns.angleToShip(f, position);
+        BossAttackPatterns.telegraphAim(f, position,
+            color: const Color(0xFFFF6C86));
+      }
+    }
     if (_countDown <= 0) {
       f.sounds.playEffect("laser");
+      if (_currentPhase < 3) rotation = _lockedAngle;
 
       if (_currentPhase == 1) {
         fire(10.0);
@@ -73,7 +86,18 @@ class EnemyBoss extends Obstacle {
     r += rotation;
     // EnemyLaser uses SpriteWidget angles (0° = up), while boss rotation
     // and the spawn offset use math angles (0° = right).
-    EnemyLaser laser = EnemyLaser(f, r + 90.0, 5.0, const Color(0xffffe38e));
+    EnemyLaser laser = EnemyLaser(
+      f,
+      r + 90.0,
+      5.0,
+      const Color(0xffffe38e),
+      motion: _currentPhase == 3
+          ? EnemyProjectileMotion.weaving
+          : EnemyProjectileMotion.straight,
+      weaveAmplitude: _currentPhase == 3 ? 3.4 : 0.0,
+      shipDamage: _currentPhase == 3 ? 0.8 : 1.0,
+      highVisibility: _currentPhase == 3,
+    );
 
     double rad = radians(r);
     Offset startOffset = Offset(math.cos(rad) * 30.0, math.sin(rad) * 30.0);

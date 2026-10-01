@@ -3,12 +3,16 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
 import 'package:mini__game2/controller/game/game_balance.dart';
+import 'package:mini__game2/model/combat_damage.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
+import 'package:mini__game2/l10n/generated/app_localizations.dart';
 import 'package:mini__game2/main.dart';
 import 'package:mini__game2/model/quest.dart';
 import 'package:mini__game2/model/weapon.dart';
 import 'package:mini__game2/model/equipment.dart';
+import 'package:mini__game2/model/combat_stats.dart';
+import 'package:mini__game2/model/run_upgrade.dart';
 import 'package:mini__game2/model/ship_model.dart';
 import 'package:spritewidget/spritewidget.dart';
 
@@ -20,34 +24,11 @@ class BossBuffReward {
 
   final BossBuffType type;
   final int percent;
-
-  String get label => switch (type) {
-        BossBuffType.green => 'BUFF XANH',
-        BossBuffType.purple => 'BUFF TÍM',
-        BossBuffType.gold => 'BUFF VÀNG HIẾM',
-      };
-
-  String get description => switch (type) {
-        BossBuffType.green => '+$percent% sát thương vũ khí',
-        BossBuffType.purple => '+$percent% tốc độ bắn',
-        BossBuffType.gold => '+$percent% sát thương vũ khí',
-      };
-
-  String get vietnameseLabel => switch (type) {
-        BossBuffType.green => 'BUFF XANH',
-        BossBuffType.purple => 'BUFF TÍM',
-        BossBuffType.gold => 'BUFF VÀNG HIẾM',
-      };
-
-  String get vietnameseDescription => switch (type) {
-        BossBuffType.green => '+$percent% sát thương vũ khí',
-        BossBuffType.purple => '+$percent% tốc độ bắn',
-        BossBuffType.gold => '+$percent% sát thương vũ khí',
-      };
 }
 
 class PlayerState extends Node {
-  PlayerState(this._sheetUI, this._sheetGame, this._gameState) {
+  PlayerState(
+      this._sheetUI, this._sheetGame, this._gameState, this._localizations) {
     // Score display
     _spriteBackgroundScore = Sprite(texture: _sheetUI["scoreboard.png"]!);
     _spriteBackgroundScore.pivot = const Offset(1.0, 0.0);
@@ -75,6 +56,14 @@ class PlayerState extends Node {
     _hpDisplay.position = const Offset(10.0, 15.0); // Top left
     addChild(_hpDisplay);
 
+    _comboDisplay = ComboDisplay(_localizations)
+      ..position = const Offset(160.0, 76.0);
+    addChild(_comboDisplay);
+
+    _runProgressDisplay = RunProgressDisplay(_localizations)
+      ..position = const Offset(160.0, 100.0);
+    addChild(_runProgressDisplay);
+
     laserLevel = _gameState.laserLevel;
 
     // Each fighter owns a fixed primary weapon. Pickups no longer replace it,
@@ -85,42 +74,39 @@ class PlayerState extends Node {
   }
 
   int droneEquipmentLevel = 1;
+  late CombatStatBlock _equipmentStats;
 
   void _calculateEquipmentStats() {
-    int bonusHp = 0;
-    double bonusDamage = 0.0;
-    double bonusSpeed = 0.0;
-    double bonusDamageReduction = 0.0;
-
-    _gameState.equippedLoadout.forEach((slot, id) {
-      EquipmentItem? item = EquipmentItem.getById(id);
-      if (item != null) {
-        int level = _gameState.equipmentLevels[id] ?? 1;
-        bonusHp += item.getHpBonus(level);
-        bonusDamage += item.getDamageMultiplier(level);
-        bonusSpeed += item.getSpeedMultiplier(level);
-        bonusDamageReduction += item.getDamageReduction(level);
-        if (item.slot == EquipmentSlot.drone) {
-          droneEquipment = item;
-          droneEquipmentLevel = level;
-        }
+    final entries = <EquipmentStatEntry>[];
+    for (final id in _gameState.equippedLoadout.values) {
+      final item = EquipmentItem.getById(id);
+      if (item == null) continue;
+      final level = _gameState.equipmentLevels[id] ?? 1;
+      entries.add(EquipmentStatEntry(item, level));
+      if (item.slot == EquipmentSlot.drone) {
+        droneEquipment = item;
+        droneEquipmentLevel = level;
       }
-    });
+    }
+    _equipmentStats = CombatStatBlock.fromLoadout(
+      ship: equippedShip,
+      equipment: entries,
+    );
 
-    maxHp = 3 + bonusHp;
+    maxHp = _equipmentStats.maxHp;
     hp = maxHp; // Start with full HP
-    _equipmentDamageMultiplier = 1.0 + bonusDamage;
-    damageMultiplier = _equipmentDamageMultiplier;
-    speedMultiplier = 1.0 + bonusSpeed;
-    armorDamageReduction = bonusDamageReduction.clamp(0.0, 0.40).toDouble();
-
-    // Adjust scroll speed with engine speed multiplier
-    scrollSpeed = normalScrollSpeed * speedMultiplier;
+    _hpDisplay
+      ..hp = hp
+      ..maxHp = maxHp;
+    _equipmentDamageMultiplier = _equipmentStats.damageMultiplier;
+    speedMultiplier = _equipmentStats.movementMultiplier;
+    armorDamageReduction = _equipmentStats.armorReduction;
   }
 
   final SpriteSheet _sheetUI;
   final SpriteSheet _sheetGame;
   final PersistantGameState _gameState;
+  final AppLocalizations _localizations;
 
   int laserLevel = 0;
   late WeaponType currentWeapon;
@@ -135,6 +121,44 @@ class PlayerState extends Node {
   Ship get equippedShip => ShipConfig
       .ships[_gameState.equippedShip.clamp(0, ShipConfig.ships.length - 1)];
 
+  CombatStatBlock get combatStats => _equipmentStats.withRuntime(
+        maxHp: maxHp,
+        currentHp: hp,
+        damageMultiplier: damageMultiplier,
+        fireRateMultiplier:
+            _equipmentStats.fireRateMultiplier * runFireRateMultiplier,
+        criticalChance: criticalChance,
+        projectileCount: _equipmentStats.projectileCount + extraVolleyShots,
+        movementMultiplier: movementMultiplier,
+        shieldActive: shieldActive,
+        shieldFrames: activeShieldFrames,
+      );
+
+  double get criticalChance =>
+      (_equipmentStats.criticalChance + _runCriticalChance)
+          .clamp(0.0, 0.5)
+          .toDouble();
+  double get movementMultiplier =>
+      _equipmentStats.movementMultiplier * (1.0 + _runMovementBonus);
+  double get criticalDamageMultiplier =>
+      _equipmentStats.criticalDamageMultiplier;
+  double get skillChargeMultiplier => _equipmentStats.skillChargeMultiplier;
+  double get skillCooldownMultiplier => _equipmentStats.skillCooldownMultiplier;
+  ArmorPassive get armorPassive => _equipmentStats.armorPassive;
+
+  final ValueNotifier<int> riftChargeNotifier = ValueNotifier<int>(0);
+  int get riftCharge => riftChargeNotifier.value;
+
+  void gainRiftCharge(int amount) {
+    riftChargeNotifier.value = (riftCharge + amount).clamp(0, 100).toInt();
+  }
+
+  bool spendRiftCharge() {
+    if (riftCharge < 100) return false;
+    riftChargeNotifier.value = 0;
+    return true;
+  }
+
   void changeWeapon(WeaponType type) {
     // The ship keeps its own firing pattern. Ammo drops are a temporary
     // combat buff: +15% damage for 10 seconds, refreshing on every pickup.
@@ -146,6 +170,9 @@ class PlayerState extends Node {
       WeaponType.piercing || WeaponType.nova => const Color(0xFFC77DFF),
       WeaponType.rapid => const Color(0xFF69F0AE),
       WeaponType.plasma => const Color(0xFFFF8A65),
+      WeaponType.phase => const Color(0xFF55E8FF),
+      WeaponType.arc => const Color(0xFFB56CFF),
+      WeaponType.flak => const Color(0xFFFFB44A),
       WeaponType.basic => Colors.white,
     };
   }
@@ -174,6 +201,8 @@ class PlayerState extends Node {
   late Sprite _spriteBackgroundCoins;
   late ScoreDisplay _coinDisplay;
   late HpDisplay _hpDisplay;
+  late ComboDisplay _comboDisplay;
+  late RunProgressDisplay _runProgressDisplay;
 
   int get score => _scoreDisplay.score;
 
@@ -196,15 +225,39 @@ class PlayerState extends Node {
   double get comboMultiplier => 1.0 + combo * 0.05;
 
   void awardKillScore(int baseScore) {
+    gainRiftCharge((12 * skillChargeMultiplier).round());
     combo = (combo + 1).clamp(0, _maxCombo).toInt();
     _comboFrames = 240;
     score += (baseScore * comboMultiplier).round();
+    _comboDisplay
+      ..combo = combo
+      ..pulse();
   }
 
   void resetCombo() {
     combo = 0;
     _comboFrames = 0;
+    _comboDisplay.combo = 0;
   }
+
+  /// Rewards a clean graze once per short window and gives an active streak
+  /// a little breathing room. Close calls add score without inflating kills.
+  int? awardNearMiss() {
+    if (shieldActive || _nearMissCooldownFrames > 0) return null;
+
+    _nearMissCooldownFrames = 12;
+    gainRiftCharge((4 * skillChargeMultiplier).round());
+    final bonus = (25 * comboMultiplier).round();
+    score += bonus;
+
+    if (combo > 0) {
+      _comboFrames = (_comboFrames + 45).clamp(0, 300).toInt();
+      _comboDisplay.pulse();
+    }
+    return bonus;
+  }
+
+  int _nearMissCooldownFrames = 0;
 
   int get coins => _coinDisplay.score;
   int coinMultiplier = 1;
@@ -285,8 +338,14 @@ class PlayerState extends Node {
   /// Fractional damage carries forward, so reduction is deterministic.
   int takeShipDamage(double rawDamage) {
     if (rawDamage <= 0 || shieldActive) return 0;
+    _armorQuietFrames = 0;
+    _armorShieldFrames = 0;
     resetCombo();
-    _damageRemainder += rawDamage * (1.0 - armorDamageReduction);
+    final resolvedDamage = CombatDamagePipeline.resolve(
+      baseDamage: rawDamage,
+      targetResistance: armorDamageReduction,
+    );
+    _damageRemainder += resolvedDamage.finalDamage;
     final lostHp = _damageRemainder.floor();
     if (lostHp == 0) return 0;
     _damageRemainder -= lostHp;
@@ -294,7 +353,22 @@ class PlayerState extends Node {
     return lostHp;
   }
 
-  double damageMultiplier = 1.0;
+  double get equipmentDamageMultiplier =>
+      _equipmentDamageMultiplier +
+      (_equipmentStats.armorPassive == ArmorPassive.berserker &&
+              hp <= maxHp * 0.30
+          ? 0.35
+          : 0.0);
+
+  /// Boss rewards add damage; level-up modules multiply it for a distinct
+  /// build choice in the current run.
+  double get damageMultiplier =>
+      (equipmentDamageMultiplier + _bossDamageBonus) * (1.0 + _runDamageBonus);
+
+  double get runDamageBuffMultiplier =>
+      (1.0 + _bossDamageBonus / equipmentDamageMultiplier) *
+      (1.0 + _runDamageBonus);
+
   double _equipmentDamageMultiplier = 1.0;
   double speedMultiplier = 1.0;
   double armorDamageReduction = 0.0;
@@ -303,18 +377,134 @@ class PlayerState extends Node {
 
   int runLevel = 1;
   int experience = 0;
-  int experienceToNextLevel = 30;
+  int experienceToNextLevel = 150;
   double runFireRateMultiplier = 1.0;
   double _bossDamageBonus = 0.0;
   double _bossFireRateBonus = 0.0;
+  double _runDamageBonus = 0.0;
+  double _runFireRateBonus = 0.0;
+  double _runCriticalChance = 0.0;
+  double _runMovementBonus = 0.0;
   int extraVolleyShots = 0;
   void Function(List<BossBuffReward> choices)? onBossBuff;
+  void Function(int level, List<RunUpgradeReward> choices)? onRunLevelUp;
+  int _pendingRunLevelUps = 0;
+  List<RunUpgradeReward>? _activeRunUpgradeChoices;
+
+  bool get hasRunUpgradeChoice => _activeRunUpgradeChoices != null;
+
+  int _armorReactiveCooldownFrames = 0;
+  int _armorQuietFrames = 0;
+  int _armorShieldFrames = 0;
+  int _droneShieldCooldownFrames = 900;
+  int _droneShieldFrames = 0;
+
+  bool tryBlockReactiveHit() {
+    if (_equipmentStats.armorPassive != ArmorPassive.reactive ||
+        _armorReactiveCooldownFrames > 0) {
+      return false;
+    }
+    _armorReactiveCooldownFrames = 1200;
+    hpInvincibilityFrames = math.max(hpInvincibilityFrames, 75).toInt();
+    return true;
+  }
 
   void gainExperience(int amount) {
-    // Experience remains available for score/progression display, but it no
-    // longer grants combat upgrades. Boss defeats are the sole buff source.
     if (amount <= 0) return;
     experience += amount;
+    while (experience >= experienceToNextLevel) {
+      experience -= experienceToNextLevel;
+      runLevel++;
+      experienceToNextLevel = 150 + (runLevel - 1) * 55;
+      _pendingRunLevelUps++;
+    }
+    _offerNextRunLevelUp();
+  }
+
+  List<RunUpgradeType> _eligibleRunUpgrades() {
+    final upgrades = <RunUpgradeType>[];
+    if (_runDamageBonus < 0.5) {
+      upgrades.add(RunUpgradeType.weaponDamage);
+    }
+    if (_bossFireRateBonus + _runFireRateBonus < 0.60) {
+      upgrades.add(RunUpgradeType.fireRate);
+    }
+    if (extraVolleyShots < 2) upgrades.add(RunUpgradeType.multishot);
+    if (criticalChance < 0.5) upgrades.add(RunUpgradeType.critical);
+    if (_runMovementBonus < 0.5) upgrades.add(RunUpgradeType.thrusters);
+    if (maxHp < _equipmentStats.maxHp + 2) upgrades.add(RunUpgradeType.hull);
+    if (hp < maxHp) upgrades.add(RunUpgradeType.repair);
+    if (riftCharge < 100) upgrades.add(RunUpgradeType.riftCharge);
+    upgrades.add(RunUpgradeType.shield);
+    return upgrades;
+  }
+
+  void _offerNextRunLevelUp() {
+    if (_activeRunUpgradeChoices != null || _pendingRunLevelUps <= 0) return;
+    final eligible = _eligibleRunUpgrades()..shuffle();
+    _activeRunUpgradeChoices = eligible
+        .take(3)
+        .map((type) => RunUpgradeReward(type))
+        .toList(growable: false);
+    _pendingRunLevelUps--;
+    onRunLevelUp?.call(runLevel, _activeRunUpgradeChoices!);
+  }
+
+  /// Applies the chosen run-only module. Returns true when another queued
+  /// level-up needs a choice before combat can resume.
+  bool applyRunUpgrade(RunUpgradeReward reward) {
+    final choices = _activeRunUpgradeChoices;
+    if (choices == null || !choices.contains(reward)) {
+      return hasRunUpgradeChoice;
+    }
+
+    switch (reward.type) {
+      case RunUpgradeType.weaponDamage:
+        _runDamageBonus = (_runDamageBonus + 0.10)
+            .clamp(
+              0.0,
+              0.5,
+            )
+            .toDouble();
+        break;
+      case RunUpgradeType.fireRate:
+        _runFireRateBonus = (_runFireRateBonus + 0.08)
+            .clamp(
+              0.0,
+              (0.60 - _bossFireRateBonus).clamp(0.0, 0.60),
+            )
+            .toDouble();
+        runFireRateMultiplier = 1.0 + _bossFireRateBonus + _runFireRateBonus;
+        break;
+      case RunUpgradeType.multishot:
+        extraVolleyShots = (extraVolleyShots + 1).clamp(0, 2).toInt();
+        break;
+      case RunUpgradeType.critical:
+        _runCriticalChance =
+            (_runCriticalChance + 0.05).clamp(0.0, 0.5).toDouble();
+        break;
+      case RunUpgradeType.thrusters:
+        _runMovementBonus =
+            (_runMovementBonus + 0.10).clamp(0.0, 0.5).toDouble();
+        break;
+      case RunUpgradeType.hull:
+        maxHp++;
+        hp = (hp + 1).clamp(0, maxHp).toInt();
+        break;
+      case RunUpgradeType.repair:
+        hp = (hp + 1).clamp(0, maxHp).toInt();
+        break;
+      case RunUpgradeType.riftCharge:
+        gainRiftCharge(25);
+        break;
+      case RunUpgradeType.shield:
+        _shieldFrames += 90;
+        break;
+    }
+
+    _activeRunUpgradeChoices = null;
+    _offerNextRunLevelUp();
+    return hasRunUpgradeChoice;
   }
 
   /// Offers both damage and fire-rate paths; gold is a rarer power spike.
@@ -340,13 +530,18 @@ class PlayerState extends Node {
         _bossDamageBonus = (_bossDamageBonus + reward.percent / 100)
             .clamp(0.0, GameBalance.maxRunDamageBonus)
             .toDouble();
-        damageMultiplier = _equipmentDamageMultiplier + _bossDamageBonus;
         break;
       case BossBuffType.purple:
         _bossFireRateBonus = (_bossFireRateBonus + reward.percent / 100)
-            .clamp(0.0, GameBalance.maxRunFireRateBonus)
+            .clamp(
+              0.0,
+              (GameBalance.maxRunFireRateBonus - _runFireRateBonus).clamp(
+                0.0,
+                GameBalance.maxRunFireRateBonus,
+              ),
+            )
             .toDouble();
-        runFireRateMultiplier = 1.0 + _bossFireRateBonus;
+        runFireRateMultiplier = 1.0 + _bossFireRateBonus + _runFireRateBonus;
         break;
     }
   }
@@ -358,10 +553,31 @@ class PlayerState extends Node {
 
   int _shieldFrames = 0;
   bool get shieldActive =>
-      _shieldFrames > 0 || _speedBoostFrames > 0 || hpInvincibilityFrames > 0;
+      _shieldFrames > 0 ||
+      _speedBoostFrames > 0 ||
+      _armorShieldFrames > 0 ||
+      _droneShieldFrames > 0 ||
+      hpInvincibilityFrames > 0;
+  int get activeShieldFrames => math
+      .max(
+        math.max(_shieldFrames, _speedBoostFrames),
+        math.max(
+          math.max(_armorShieldFrames, _droneShieldFrames),
+          hpInvincibilityFrames,
+        ),
+      )
+      .toInt();
   bool get shieldDeactivating =>
-      math.max(_shieldFrames, _speedBoostFrames) > 0 &&
-      math.max(_shieldFrames, _speedBoostFrames) < 60;
+      math.max(
+            math.max(_shieldFrames, _speedBoostFrames),
+            math.max(_armorShieldFrames, _droneShieldFrames),
+          ) >
+          0 &&
+      math.max(
+            math.max(_shieldFrames, _speedBoostFrames),
+            math.max(_armorShieldFrames, _droneShieldFrames),
+          ) <
+          60;
 
   int hpInvincibilityFrames = 0; // Temp invincibility after taking a hit
 
@@ -388,6 +604,11 @@ class PlayerState extends Node {
   @override
   void update(double dt) {
     if (_comboFrames > 0 && --_comboFrames == 0) resetCombo();
+    if (_nearMissCooldownFrames > 0) _nearMissCooldownFrames--;
+    _comboDisplay.combo = combo;
+    _runProgressDisplay
+      ..level = runLevel
+      ..progress = experience / experienceToNextLevel;
     if (_shieldFrames > 0) {
       _shieldFrames--;
     }
@@ -416,8 +637,32 @@ class PlayerState extends Node {
     if (hpInvincibilityFrames > 0) {
       hpInvincibilityFrames--;
     }
+    if (_armorReactiveCooldownFrames > 0) _armorReactiveCooldownFrames--;
 
-    _hpDisplay.hp = hp; // Sync HP display
+    if (_equipmentStats.armorPassive == ArmorPassive.energyShield) {
+      if (_armorShieldFrames > 0) {
+        _armorShieldFrames--;
+      } else if (++_armorQuietFrames >= 300) {
+        _armorQuietFrames = 0;
+        _armorShieldFrames = 90;
+      }
+    }
+
+    if (droneEquipment?.droneRole == DroneRole.shield) {
+      if (_droneShieldFrames > 0) {
+        _droneShieldFrames--;
+      } else if (--_droneShieldCooldownFrames <= 0) {
+        _droneShieldFrames = 90;
+        _droneShieldCooldownFrames = 900;
+      }
+    }
+
+    _hpDisplay
+      ..hp = hp
+      ..maxHp = maxHp;
+    _runProgressDisplay
+      ..level = runLevel
+      ..progress = experience / experienceToNextLevel;
 
     // Update speed
     if (boss != null) {
@@ -436,6 +681,155 @@ class PlayerState extends Node {
     }
 
     scrollSpeed = GameMath.filter(scrollSpeed, _scrollSpeedTarget, 0.1);
+  }
+}
+
+/// Compact run-level and XP progress indicator above the gameplay lane.
+class RunProgressDisplay extends Node {
+  RunProgressDisplay(this._localizations) {
+    _rebuildLabel();
+  }
+
+  final AppLocalizations _localizations;
+  int _level = 1;
+  double progress = 0.0;
+  late TextPainter _label;
+
+  set level(int value) {
+    if (_level == value) return;
+    _level = value;
+    _rebuildLabel();
+  }
+
+  void _rebuildLabel() {
+    _label = TextPainter(
+      text: TextSpan(
+        text: _localizations.runLevelShort(_level),
+        style: const TextStyle(
+          fontFamily: 'Orbitron',
+          fontSize: 7.0,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.3,
+          color: Colors.white,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+  }
+
+  @override
+  void paint(Canvas canvas) {
+    final plate = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset.zero, width: 104.0, height: 18.0),
+      const Radius.circular(6.0),
+    );
+    canvas.drawRRect(plate, Paint()..color = const Color(0xCC07182A));
+    canvas.drawRRect(
+      plate,
+      Paint()
+        ..color = const Color(0x6655E8FF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8,
+    );
+    _label.paint(canvas, const Offset(-46.0, -3.5));
+
+    final rail = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(-10.0, -2.0, 54.0, 4.0),
+      const Radius.circular(2.0),
+    );
+    canvas.drawRRect(rail, Paint()..color = const Color(0x663A5269));
+    final fillWidth = 54.0 * progress.clamp(0.0, 1.0).toDouble();
+    if (fillWidth > 0.0) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(-10.0, -2.0, fillWidth, 4.0),
+          const Radius.circular(2.0),
+        ),
+        Paint()..color = const Color(0xFF55E8FF),
+      );
+    }
+  }
+}
+
+/// Compact, animated streak indicator kept between the health and score HUD.
+class ComboDisplay extends Node {
+  ComboDisplay(this._localizations);
+
+  final AppLocalizations _localizations;
+  int _combo = 0;
+  double _pulseAmount = 0.0;
+  TextPainter? _count;
+  TextPainter? _multiplier;
+
+  int get combo => _combo;
+
+  set combo(int value) {
+    if (_combo == value) return;
+    _combo = value;
+    _rebuildLabels();
+  }
+
+  void pulse() => _pulseAmount = 1.0;
+
+  void _rebuildLabels() {
+    if (_combo <= 0) {
+      _count = null;
+      _multiplier = null;
+      return;
+    }
+
+    final color =
+        _combo >= 10 ? const Color(0xFFFFD166) : const Color(0xFF72F5FF);
+    _count = TextPainter(
+      text: TextSpan(
+        text: _localizations.comboLabel(_combo),
+        style: TextStyle(
+          fontFamily: 'Orbitron',
+          fontSize: 10.0,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.0,
+          color: color,
+          shadows: [
+            Shadow(color: color.withOpacity(0.75), blurRadius: 9.0),
+            const Shadow(color: Colors.black, blurRadius: 3.0),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    _multiplier = TextPainter(
+      text: TextSpan(
+        text: _localizations
+            .scoreMultiplier((1.0 + _combo * 0.05).toStringAsFixed(2)),
+        style: TextStyle(
+          fontFamily: 'Orbitron',
+          fontSize: 7.0,
+          letterSpacing: 1.2,
+          color: Colors.white.withOpacity(0.76),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+  }
+
+  @override
+  void update(double dt) {
+    _pulseAmount = (_pulseAmount - dt * 3.5).clamp(0.0, 1.0).toDouble();
+  }
+
+  @override
+  void paint(Canvas canvas) {
+    final count = _count;
+    final multiplier = _multiplier;
+    if (count == null || multiplier == null) return;
+
+    final scale = 1.0 + _pulseAmount * 0.18;
+    canvas.save();
+    canvas.scale(scale, scale);
+    count.paint(canvas, Offset(-count.width / 2.0, -count.height / 2.0 - 2.0));
+    multiplier.paint(
+        canvas, Offset(-multiplier.width / 2.0, count.height / 2.0 - 1.0));
+    canvas.restore();
   }
 }
 
@@ -478,12 +872,21 @@ class HpDisplay extends Node {
   HpDisplay(this._sheetUI); // receives _sheetGame which has powerup_0.png
 
   int _hp = 3;
+  int _maxHp = 3;
 
   int get hp => _hp;
 
   set hp(int hp) {
     if (_hp != hp) {
       _hp = hp;
+      _dirtyHp = true;
+    }
+  }
+
+  set maxHp(int maxHp) {
+    final safeMaxHp = maxHp.clamp(1, 12).toInt();
+    if (_maxHp != safeMaxHp) {
+      _maxHp = safeMaxHp;
       _dirtyHp = true;
     }
   }
@@ -495,15 +898,18 @@ class HpDisplay extends Node {
   void update(double dt) {
     if (_dirtyHp) {
       removeAllChildren();
-      if (_hp > 0) {
-        // One armour indicator avoids implying that several shields are worn.
-        Sprite hpSprite = Sprite(texture: _sheetUI["powerup_0.png"]!);
-        hpSprite.colorOverlay = _hp == 1
-            ? const Color(0xFFFF3232)
-            : _hp == 2
-                ? const Color(0xFFFFB300)
-                : const Color(0xFF36E7FF);
-        hpSprite.scale = 0.3;
+      final hpColor = _hp == 1
+          ? const Color(0xFFFF4545)
+          : _hp == 2
+              ? const Color(0xFFFFB300)
+              : const Color(0xFF36E7FF);
+      for (var index = 0; index < _maxHp; index++) {
+        final filled = index < _hp;
+        final hpSprite = Sprite(texture: _sheetUI["powerup_0.png"]!)
+          ..position = Offset(index * 17.0, 0.0)
+          ..colorOverlay = filled ? hpColor : const Color(0xFF64748B)
+          ..opacity = filled ? 1.0 : 0.3
+          ..scale = 0.3;
         addChild(hpSprite);
       }
       _dirtyHp = false;

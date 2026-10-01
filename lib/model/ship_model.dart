@@ -6,6 +6,9 @@ enum ShipModel {
   phoenix,
   stealth,
   guardian,
+  superFighter,
+  riftDancer,
+  bastion,
 }
 
 class Ship {
@@ -86,6 +89,39 @@ class ShipConfig {
       fireRateMultiplier: 1.5,
       sizeMultiplier: 1.2,
       weapon: WeaponType.nova,
+    ),
+    Ship(
+      model: ShipModel.superFighter,
+      name: "Chiến Cơ Siêu Hạng",
+      description: "Nguyên mẫu tối mật dùng lõi khe nứt và Pháo Xuyên Không.",
+      cost: 150000,
+      customAsset: 'assets/ships/ship_superfighter.png',
+      speedMultiplier: 1.3,
+      fireRateMultiplier: 1.65,
+      sizeMultiplier: 0.95,
+      weapon: WeaponType.phase,
+    ),
+    Ship(
+      model: ShipModel.riftDancer,
+      name: 'Rift Dancer',
+      description: 'A nimble interceptor armed with curving arc bolts.',
+      cost: 95000,
+      customAsset: 'assets/ships/ship_rift_dancer.png',
+      speedMultiplier: 1.25,
+      fireRateMultiplier: 1.2,
+      sizeMultiplier: 0.9,
+      weapon: WeaponType.arc,
+    ),
+    Ship(
+      model: ShipModel.bastion,
+      name: 'Bastion',
+      description: 'A heavy gunship that blankets lanes with flak.',
+      cost: 110000,
+      customAsset: 'assets/ships/ship_bastion.png',
+      speedMultiplier: 0.82,
+      fireRateMultiplier: 1.1,
+      sizeMultiplier: 1.12,
+      weapon: WeaponType.flak,
     ),
   ];
 }

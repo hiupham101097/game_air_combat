@@ -58,6 +58,7 @@ Tốc độ khai hỏa thực tế được điều chỉnh bởi tốc độ b�
 | Súng xung kích | Bắn đạn năng lượng với nhịp rất nhanh | 0.75x |
 | Pháo plasma | Hai phát plasma lớn, sát thương cao | 2.8x |
 | Sóng Nova | Bốn luồng năng lượng tỏa rộng | 3.5x |
+| Pháo Xuyên Không | Tia pha năng lượng mạnh, trang bị riêng cho Chiến Cơ Siêu Hạng | 2.5x |
 
 Power-up Laser bên và các nâng cấp đặc biệt có thể tạo thêm đạn hoặc mở rộng vùng tấn công.
 
@@ -68,8 +69,9 @@ Power-up Laser bên và các nâng cấp đặc biệt có thể tạo thêm đ�
 - **Phượng Hoàng:** Tăng 30% tốc độ bắn, dùng pháo plasma.
 - **Tàng Hình:** Tăng 40% tốc độ và giảm vùng va chạm còn khoảng 70%, nhưng bắn chậm hơn.
 - **Hộ Vệ:** Chậm hơn nhưng tăng 50% tốc độ bắn, thiên về hỏa lực mạnh.
+- **Chiến Cơ Siêu Hạng:** Chiến cơ nguyên mẫu tốc độ cao, dùng Pháo Xuyên Không. Mở khóa khi đạt Cấp 10 hoặc mua sớm với 150.000 xu.
 
-Chiến cơ mới được mở khóa bằng xu. Tàu nhanh phù hợp với lối chơi né tránh, còn tàu hạng nặng phù hợp với lối chơi tấn công trực diện.
+Các chiến cơ thường được mở khóa bằng xu. Chiến Cơ Siêu Hạng còn có thể nhận làm phần thưởng khi đạt Cấp 10. Tàu nhanh phù hợp với lối chơi né tránh, còn tàu hạng nặng phù hợp với lối chơi tấn công trực diện.
 
 ## 7. Cấu trúc màn chơi
 
@@ -89,7 +91,7 @@ Mỗi cấp độ gồm 9 phân đoạn. Màn chơi cuộn liên tục và lần
 
 ## 8. Kẻ địch và boss
 
-Người chơi phải đối mặt với thiên thạch, tàu trinh sát, tàu hủy diệt, kẻ địch tinh nhuệ và các loại đạn laser của địch. Mỗi loại có tốc độ, HP và cách tấn công khác nhau.
+Người chơi phải đối mặt với thiên thạch, tàu trinh sát, tàu hủy diệt, Bóng Ma Pha Lệ, Oanh Tạc Cơ Khe Nứt, Vệ Binh Hư Không và các loại đạn laser của địch. Bóng Ma Pha Lệ biến mất theo nhịp để tránh hỏa lực; Oanh Tạc Cơ bắn loạt đạn quạt; Vệ Binh Hư Không phóng đạn tỏa tròn. Mỗi loại có tốc độ, HP và cách tấn công khác nhau.
 
 Boss được luân phiên giữa nhiều kiểu chiến đấu như bắn laser, triệu hồi trợ thủ, tạo đạn tỏa tròn, di chuyển bất thường hoặc tấn công diện rộng. Boss có thanh máu riêng và được giữ lại trên màn hình cho đến khi bị tiêu diệt.
 
@@ -193,6 +195,8 @@ Trang bị có bốn độ hiếm: thường, hiếm, sử thi và huyền tho�
 
 Nhiệm vụ ngày và tuần yêu cầu người chơi hoàn thành số lượt chơi, tiêu diệt kẻ địch hoặc thu thập xu. Hoàn thành nhiệm vụ sẽ nhận phần thưởng.
 
+Nền chiến đấu chuyển vùng theo tiến trình: từ không gian biên giới đến khe nứt dị không gian và lõi xâm lược. Vết rách phát sáng, hạt năng lượng và màu nền thay đổi tạo dấu hiệu báo trước đợt địch mạnh hơn. Chế độ sự kiện giữ nhịp nền nóng rực và mật độ tấn công cao.
+
 Chế độ sự kiện có bối cảnh riêng, kẻ địch mạnh hơn, nhiều đợt tấn công liên tiếp, boss xuất hiện dày hơn và hệ số xu cao hơn. Đây là chế độ phù hợp để thử bộ trang bị mạnh và tối ưu điểm số.
 
 Điểm cao nhất được lưu lại để phục vụ bảng xếp hạng và so sánh thành tích.
@@ -221,3 +225,23 @@ Game lưu xu, tài nguyên, cấp laser, cấp power-up, cấp bắt đầu đã
 ## 20. Tóm tắt trải nghiệm
 
 Air Combat kết hợp lối chơi bắn máy bay dễ tiếp cận với hệ thống phát triển lâu dài. Người chơi chỉ cần chạm và kéo để bay, nhưng để đạt điểm cao cần duy trì combo, tận dụng power-up, lựa chọn tàu và vũ khí phù hợp, xây dựng trang bị hiệu quả và kiểm soát từng trận đấu boss.
+
+## 21. Cốt truyện
+
+Một vết nứt không gian mở ra phía ngoài các hành tinh. Hạm đội từ chiều không gian khác tràn qua, tìm cách xâm nhập và tiêu diệt các thuộc địa của nhân loại. Những chiến cơ trinh sát đầu tiên chỉ là mở màn: kẻ địch liên tục đưa tới vũ khí mới, oanh tạc cơ và các chiến hạm tinh nhuệ khiến lá chắn Trái Đất dần sụp đổ.
+
+Trong tuyệt vọng, các xưởng đóng tàu cuối cùng thu hồi lõi năng lượng từ khe nứt và chế tạo **Chiến Cơ Siêu Hạng**. Pháo Xuyên Không biến năng lượng của chính kẻ xâm lược thành vũ khí. Người chơi là phi công thử nghiệm, phải xuyên qua từng vùng chiến sự, phá hạm đội địch và tiến vào khe nứt trước khi đợt tấn công tiếp theo tới Trái Đất. Có thể đọc lại cốt truyện bằng nút **Cốt truyện** trên màn hình chính.
+
+## Tài nguyên hình ảnh mới
+
+| Tài nguyên | Mô tả | Kích thước trong game | Đường dẫn | Công cụ |
+| --- | --- | --- | --- | --- |
+| Chiến Cơ Siêu Hạng | Chiến cơ thử nghiệm hướng thẳng lên, nền trong suốt | Khoảng 63×63 px | `assets/ships/ship_superfighter.png` | image_gen tích hợp |
+
+## Combat expansion
+
+- Rift Burst charges from kills (+12) and near misses (+4). At full charge, activate the button during a run to clear hostile projectiles, deal 30% damage to regular enemies, and gain a short invulnerability window.
+- Rift Dancer (95,000 coins) fires three curving arc bolts. Bastion (110,000 coins) blankets a wide lane with a five-shot flak spread.
+- Rift Leeches steer toward the player's lane. Shard Broods split into two Drone Mites when destroyed. Both join regular elite waves as the campaign advances.
+- Equipment resonance rewards matching rarity: two pieces increase fire rate by 5%, three add 8% damage, and four also add one hull point and 5% speed.
+- New standalone ship art lives in `assets/ships/ship_rift_dancer.png` and `assets/ships/ship_bastion.png`.

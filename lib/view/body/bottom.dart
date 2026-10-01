@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
+import 'package:mini__game2/l10n/generated/app_localizations.dart';
 import 'package:mini__game2/main.dart';
 import 'package:mini__game2/view/widgets.dart';
 
@@ -21,6 +22,7 @@ class BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Stack(
       children: <Widget>[
         Positioned(
@@ -68,7 +70,7 @@ class BottomBar extends StatelessWidget {
           child: TextureButton(
             onPressed: onPlay,
             texture: spriteSheetUI['btn_play.png']!,
-            label: "Bắt đầu",
+            label: l10n.start,
             textStyle: const TextStyle(
               fontFamily: "Orbitron",
               fontSize: 22.0,
@@ -99,10 +101,10 @@ class BottomBar extends StatelessWidget {
                   BoxShadow(color: Color(0xFFFF4400), blurRadius: 10, spreadRadius: 1)
                 ],
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  '⚡ EVENT MODE',
-                  style: TextStyle(
+                  l10n.eventMode,
+                  style: const TextStyle(
                     fontFamily: 'Orbitron',
                     fontSize: 13.0,
                     color: Colors.white,

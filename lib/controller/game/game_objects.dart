@@ -7,6 +7,8 @@ import 'package:mini__game2/main.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 abstract class GameObject extends Node {
+  static final Stopwatch _combatClock = Stopwatch()..start();
+
   GameObject(this.f);
 
   double radius = 0.0;
@@ -15,6 +17,9 @@ abstract class GameObject extends Node {
 
   /// Contact damage. Enemy lasers override this with their attack strength.
   double shipDamage = 1.0;
+
+  /// Fraction of incoming weapon damage absorbed by this enemy (0.0–0.95).
+  double damageResistance = 0.0;
   bool canBeDamaged = true;
   bool canBeCollected = false;
   // Only bosses opt into this. It keeps run-strength buffs tied strictly to
@@ -30,6 +35,7 @@ abstract class GameObject extends Node {
   // Accumulated damage received. Starting at zero is essential for maxDamage
   // to represent actual health rather than every target dying on the first hit.
   double damage = 0.0;
+  int _hitFlashUntilMs = 0;
 
   final GameObjectFactory f;
 
@@ -91,11 +97,12 @@ abstract class GameObject extends Node {
       destroy();
       f.playerState.awardKillScore(scoreReward ?? (maxDamage * 10).ceil());
       f.playerState.enemyKilled();
-      f.playerState.gainExperience((maxDamage / 10).ceil().clamp(1, 50));
       if (grantsBossBuff) {
         f.playerState.offerBossBuffChoices();
       }
+      f.playerState.gainExperience((maxDamage / 10).ceil().clamp(1, 50));
     } else {
+      _hitFlashUntilMs = _combatClock.elapsedMilliseconds + 100;
       f.sounds.playEffect("hit");
     }
   }
@@ -114,6 +121,18 @@ abstract class GameObject extends Node {
       canvas.drawCircle(Offset.zero, radius, _paintDebug);
     }
     super.paint(canvas);
+    final remainingMs = _hitFlashUntilMs - _combatClock.elapsedMilliseconds;
+    if (remainingMs > 0 && radius > 0) {
+      final strength = (remainingMs / 100.0).clamp(0.0, 1.0).toDouble();
+      canvas.drawCircle(
+        Offset.zero,
+        radius + 1.5,
+        Paint()
+          ..color = Colors.white.withOpacity(0.75 * strength)
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = 2.0,
+      );
+    }
   }
 
   void setupActions() {}

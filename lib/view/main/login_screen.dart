@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/auth_controller.dart';
+import 'package:mini__game2/l10n/generated/app_localizations.dart';
 import 'package:mini__game2/main.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -23,9 +24,10 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       await gameState.syncFromCloud(); // Pull existing progress
       if (mounted) Navigator.pop(context);
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đăng nhập thất bại: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(context)!.loginFailed)));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -41,9 +43,10 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       await gameState.store(); // Push current progress to new account
       if (mounted) Navigator.pop(context);
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đăng ký thất bại: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)!.registerFailed)));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -52,6 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.black.withOpacity(0.8),
       body: Center(
@@ -66,8 +70,8 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'CLOUD SAVE ACCOUNT',
+              Text(
+                l10n.loginTitle,
                 style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Orbitron'),
               ),
               const SizedBox(height: 20),
@@ -76,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white10,
-                  hintText: 'Email',
+                  hintText: l10n.email,
                   hintStyle: const TextStyle(color: Colors.white54),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 ),
@@ -89,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white10,
-                  hintText: 'Password',
+                  hintText: l10n.password,
                   hintStyle: const TextStyle(color: Colors.white54),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 ),
@@ -106,18 +110,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     ElevatedButton(
                       onPressed: _signIn,
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-                      child: const Text('ĐĂNG NHẬP'),
+                      child: Text(l10n.signIn),
                     ),
                     ElevatedButton(
                       onPressed: _register,
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                      child: const Text('ĐĂNG KÝ'),
+                      child: Text(l10n.register),
                     ),
                   ],
                 ),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('HỦY', style: TextStyle(color: Colors.white70)),
+                child: Text(l10n.cancel,
+                    style: const TextStyle(color: Colors.white70)),
               )
             ],
           ),

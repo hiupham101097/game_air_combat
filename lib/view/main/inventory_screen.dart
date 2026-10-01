@@ -5,7 +5,10 @@ import 'package:mini__game2/main.dart';
 import 'package:mini__game2/model/ship_model.dart' as ship_models;
 import 'package:mini__game2/model/weapon.dart';
 import 'package:mini__game2/model/equipment.dart';
+import 'package:mini__game2/model/combat_stats.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
+import 'package:mini__game2/l10n/generated/app_localizations.dart';
+import 'package:mini__game2/l10n/game_localizations.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({Key? key}) : super(key: key);
@@ -38,6 +41,7 @@ class _GachaRevealState extends State<_GachaReveal> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 280),
       switchInCurve: Curves.easeOutBack,
@@ -74,14 +78,14 @@ class _GachaRevealState extends State<_GachaReveal> {
                       child: Transform.scale(scale: pulse, child: child),
                     );
                   },
-                  child: const Column(
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.all_inbox_rounded,
+                      const Icon(Icons.all_inbox_rounded,
                           color: Colors.amberAccent, size: 96),
-                      SizedBox(height: 18),
-                      Text('ĐANG MỞ RƯƠNG...',
-                          style: TextStyle(
+                      const SizedBox(height: 18),
+                      Text(l10n.chestOpening,
+                          style: const TextStyle(
                             fontFamily: 'Orbitron',
                             color: Colors.cyanAccent,
                             fontSize: 14,
@@ -115,10 +119,11 @@ class _InventoryScreenState extends State<InventoryScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFF0a0a1a),
       appBar: AppBar(
-        title: const Text('NHÀ CHỨA & TRANG BỊ',
+        title: Text(l10n.inventoryTitle,
             style: TextStyle(
                 fontFamily: 'Orbitron',
                 color: Colors.white,
@@ -158,9 +163,9 @@ class _InventoryScreenState extends State<InventoryScreen>
           labelColor: Colors.cyanAccent,
           unselectedLabelColor: Colors.white54,
           labelStyle: const TextStyle(fontFamily: 'Orbitron', fontSize: 13),
-          tabs: const [
-            Tab(text: 'HANGAR'),
-            Tab(text: 'EQUIPMENT'),
+          tabs: [
+            Tab(text: l10n.tabShips),
+            Tab(text: l10n.tabEquipment),
           ],
         ),
       ),
@@ -168,7 +173,7 @@ class _InventoryScreenState extends State<InventoryScreen>
         controller: _tabController,
         children: [
           _buildHangarTab(),
-          _buildEquipmentTab(),
+          _buildEquipmentTab(context),
         ],
       ),
     );
@@ -179,6 +184,8 @@ class _InventoryScreenState extends State<InventoryScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: ship_models.ShipConfig.ships.length,
       itemBuilder: (context, index) {
+        final l10n = AppLocalizations.of(context)!;
+        final gameText = l10n;
         final ship = ship_models.ShipConfig.ships[index];
         final isUnlocked = gameState.unlockedShips.contains(index);
         final isEquipped = gameState.equippedShip == index;
@@ -235,19 +242,19 @@ class _InventoryScreenState extends State<InventoryScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(ship.name,
+                      Text(gameText.shipName(ship.model),
                           style: const TextStyle(
                               color: Colors.white,
                               fontFamily: 'Orbitron',
                               fontSize: 16,
                               fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text(ship.description,
+                      Text(gameText.shipDescription(ship.model),
                           style: const TextStyle(
                               color: Colors.white54, fontSize: 12)),
                       const SizedBox(height: 8),
                       Text(
-                        'KIỂU BẮN: ${WeaponConfig.weapons[ship.weapon]!.name}',
+                        l10n.firingStyle(l10n.weaponName(ship.weapon)),
                         style: const TextStyle(
                             color: Colors.cyanAccent,
                             fontFamily: 'Orbitron',
@@ -255,7 +262,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                             fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 3),
-                      Text(WeaponConfig.weapons[ship.weapon]!.description,
+                      Text(l10n.weaponDescription(ship.weapon),
                           style: const TextStyle(
                               color: Colors.white54, fontSize: 11)),
                       const SizedBox(height: 8),
@@ -265,7 +272,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                               color: Colors.orangeAccent, size: 14),
                           const SizedBox(width: 4),
                           Text(
-                              'Speed ×${ship.speedMultiplier.toStringAsFixed(1)}',
+                              l10n.speedMultiplier(
+                                  ship.speedMultiplier.toStringAsFixed(1)),
                               style: const TextStyle(
                                   color: Colors.orangeAccent, fontSize: 12)),
                         ],
@@ -284,8 +292,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                           color: Colors.cyanAccent,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text('ĐANG DÙNG',
-                            style: TextStyle(
+                        child: Text(l10n.equipped,
+                            style: const TextStyle(
                                 color: Colors.black,
                                 fontFamily: 'Orbitron',
                                 fontWeight: FontWeight.bold,
@@ -304,8 +312,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                             gameState.store();
                           });
                         },
-                        child: const Text('TRANG BỊ',
-                            style: TextStyle(
+                        child: Text(l10n.equip,
+                            style: const TextStyle(
                                 fontFamily: 'Orbitron',
                                 color: Colors.white,
                                 fontSize: 11)),
@@ -326,13 +334,13 @@ class _InventoryScreenState extends State<InventoryScreen>
                             });
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Không đủ xu!'),
+                              SnackBar(
+                                  content: Text(l10n.notEnoughCoins),
                                   backgroundColor: Colors.red),
                             );
                           }
                         },
-                        child: Text('${ship.cost}\nXU',
+                        child: Text('${ship.cost}\n${l10n.coins}',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 fontFamily: 'Orbitron',
@@ -357,6 +365,7 @@ class _InventoryScreenState extends State<InventoryScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: WeaponConfig.weapons.length,
       itemBuilder: (context, index) {
+        final l10n = AppLocalizations.of(context)!;
         final weapon = WeaponConfig.weapons.values.elementAt(index);
         final isUnlocked =
             gameState.unlockedWeapons.contains(weapon.type.index);
@@ -382,7 +391,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: const Icon(Icons.flash_on,
                 color: Colors.purpleAccent, size: 32),
-            title: Text(weapon.name,
+            title: Text(l10n.weaponName(weapon.type),
                 style: const TextStyle(
                     color: Colors.white,
                     fontFamily: 'Orbitron',
@@ -390,7 +399,7 @@ class _InventoryScreenState extends State<InventoryScreen>
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(weapon.description,
+                Text(l10n.weaponDescription(weapon.type),
                     style:
                         const TextStyle(color: Colors.white54, fontSize: 12)),
                 const SizedBox(height: 4),
@@ -399,7 +408,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                     const Icon(Icons.shield, color: Colors.redAccent, size: 12),
                     const SizedBox(width: 4),
                     Text(
-                        'Damage ×${weapon.damageMultiplier.toStringAsFixed(1)}',
+                        l10n.damageMultiplier(
+                            weapon.damageMultiplier.toStringAsFixed(1)),
                         style: const TextStyle(
                             color: Colors.redAccent, fontSize: 11)),
                   ],
@@ -414,8 +424,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                       color: Colors.purpleAccent,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('ĐANG DÙNG',
-                        style: TextStyle(
+                    child: Text(l10n.equipped,
+                        style: const TextStyle(
                             color: Colors.white,
                             fontFamily: 'Orbitron',
                             fontWeight: FontWeight.bold,
@@ -430,8 +440,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                             gameState.store();
                           });
                         },
-                        child: const Text('TRANG BỊ',
-                            style: TextStyle(
+                        child: Text(l10n.equip,
+                            style: const TextStyle(
                                 fontFamily: 'Orbitron', fontSize: 10)),
                       )
                     : ElevatedButton(
@@ -446,13 +456,13 @@ class _InventoryScreenState extends State<InventoryScreen>
                             });
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Không đủ xu!'),
+                              SnackBar(
+                                  content: Text(l10n.notEnoughCoins),
                                   backgroundColor: Colors.red),
                             );
                           }
                         },
-                        child: Text('${weapon.cost}\nXU',
+                        child: Text('${weapon.cost}\n${l10n.coins}',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 color: Colors.white,
@@ -465,7 +475,20 @@ class _InventoryScreenState extends State<InventoryScreen>
     );
   }
 
-  Widget _buildEquipmentTab() {
+  Widget _buildEquipmentTab(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final rarityCounts = <Rarity, int>{};
+    for (final id in gameState.equippedLoadout.values) {
+      final item = EquipmentItem.getById(id);
+      if (item != null) {
+        rarityCounts.update(item.rarity, (count) => count + 1,
+            ifAbsent: () => 1);
+      }
+    }
+    final strongestSet = rarityCounts.entries.fold<MapEntry<Rarity, int>?>(
+      null,
+      (best, entry) => best == null || entry.value > best.value ? entry : best,
+    );
     return Column(
       children: [
         // ── Top: Resources & Sub-tabs ──────────────────────────────
@@ -499,6 +522,46 @@ class _InventoryScreenState extends State<InventoryScreen>
                   ]),
                 ],
               ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF141832),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(
+                    color: strongestSet == null
+                        ? Colors.white12
+                        : EquipmentItem.getColorForRarity(strongestSet.key)
+                            .withAlpha(100),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      strongestSet == null
+                          ? l10n.equipmentResonanceNone
+                          : l10n.equipmentResonance(
+                              l10n.equipmentRarity(strongestSet.key),
+                              strongestSet.value),
+                      style: TextStyle(
+                        color: strongestSet == null
+                            ? Colors.white54
+                            : EquipmentItem.getColorForRarity(strongestSet.key),
+                        fontFamily: 'Orbitron',
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(l10n.equipmentResonanceBonuses,
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 9)),
+                  ],
+                ),
+              ),
               const SizedBox(height: 12),
               // Segmented Control for Sub-tabs
               Row(
@@ -513,8 +576,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                             _equipmentSubTab == 0 ? Colors.black : Colors.white,
                       ),
                       onPressed: () => setState(() => _equipmentSubTab = 0),
-                      child: const Text('KHO ĐỒ',
-                          style: TextStyle(
+                      child: Text(l10n.warehouse,
+                          style: const TextStyle(
                               fontFamily: 'Orbitron',
                               fontWeight: FontWeight.bold,
                               fontSize: 12)),
@@ -531,8 +594,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                             _equipmentSubTab == 1 ? Colors.black : Colors.white,
                       ),
                       onPressed: () => setState(() => _equipmentSubTab = 1),
-                      child: const Text('NÂNG CẤP',
-                          style: TextStyle(
+                      child: Text(l10n.upgrade,
+                          style: const TextStyle(
                               fontFamily: 'Orbitron',
                               fontWeight: FontWeight.bold,
                               fontSize: 12)),
@@ -547,14 +610,26 @@ class _InventoryScreenState extends State<InventoryScreen>
         // ── Content ──────────────────────────────────────────────
         Expanded(
           child: _equipmentSubTab == 0
-              ? _buildEquipmentInventory()
-              : _buildEquipmentUpgrade(),
+              ? _buildEquipmentInventory(context)
+              : _buildEquipmentUpgrade(context),
         ),
       ],
     );
   }
 
-  Widget _buildEquipmentInventory() {
+  Widget _buildEquipmentInventory(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final equippedStats = CombatStatBlock.fromLoadout(
+      ship: ship_models.ShipConfig.ships[gameState.equippedShip
+          .clamp(0, ship_models.ShipConfig.ships.length - 1)
+          .toInt()],
+      equipment: gameState.equippedLoadout.values.map((id) {
+        final item = EquipmentItem.getById(id);
+        return item == null
+            ? null
+            : EquipmentStatEntry(item, gameState.equipmentLevel(id));
+      }).whereType<EquipmentStatEntry>(),
+    );
     return Column(
       children: [
         // ── Top: Equipped Loadout ────────────────────────────────────
@@ -566,10 +641,65 @@ class _InventoryScreenState extends State<InventoryScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildSlot(EquipmentSlot.core, Icons.bolt),
-                  _buildSlot(EquipmentSlot.armor, Icons.shield),
-                  _buildSlot(EquipmentSlot.engine, Icons.speed),
-                  _buildSlot(EquipmentSlot.drone, Icons.support_agent),
+                  _buildSlot(context, EquipmentSlot.core, Icons.bolt),
+                  _buildSlot(context, EquipmentSlot.armor, Icons.shield),
+                  _buildSlot(context, EquipmentSlot.engine, Icons.speed),
+                  _buildSlot(context, EquipmentSlot.drone, Icons.support_agent),
+                ],
+              ),
+              const SizedBox(height: 9),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(l10n.combatStats,
+                    style: const TextStyle(
+                      color: Colors.cyanAccent,
+                      fontFamily: 'Orbitron',
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    )),
+              ),
+              const SizedBox(height: 5),
+              Wrap(
+                spacing: 5,
+                runSpacing: 5,
+                children: [
+                  _statChip(l10n.statHp, '${equippedStats.maxHp}'),
+                  _statChip(l10n.statArmor,
+                      '${(equippedStats.armorReduction * 100).round()}%'),
+                  _statChip(l10n.statDamage,
+                      '×${equippedStats.damageMultiplier.toStringAsFixed(2)}'),
+                  _statChip(l10n.statFireRate,
+                      '×${equippedStats.fireRateMultiplier.toStringAsFixed(2)}'),
+                  _statChip(l10n.statCrit,
+                      '${(equippedStats.criticalChance * 100).round()}%'),
+                  _statChip(l10n.statCritDamage,
+                      '×${equippedStats.criticalDamageMultiplier.toStringAsFixed(2)}'),
+                  _statChip(
+                      l10n.statProjectile, '${equippedStats.projectileCount}'),
+                  _statChip(l10n.statProjectileSpeed,
+                      '×${equippedStats.projectileSpeedMultiplier.toStringAsFixed(2)}'),
+                  _statChip(
+                      l10n.statPierce,
+                      equippedStats.pierceCount < 0
+                          ? l10n.statPierceAll
+                          : '${equippedStats.pierceCount}'),
+                  _statChip(l10n.statBlast,
+                      '${equippedStats.explosionRadius.round()} px'),
+                  _statChip(l10n.statDrone,
+                      l10n.droneRoleName(equippedStats.droneRole)),
+                  _statChip(l10n.statSkillCooldown,
+                      '×${equippedStats.skillCooldownMultiplier.toStringAsFixed(2)}'),
+                  _statChip(
+                    l10n.statShield,
+                    equippedStats.armorPassive == ArmorPassive.reactive ||
+                            equippedStats.armorPassive ==
+                                ArmorPassive.energyShield ||
+                            equippedStats.droneRole == DroneRole.shield
+                        ? l10n.statReady
+                        : l10n.statOff,
+                  ),
+                  _statChip(l10n.statMovement,
+                      '×${equippedStats.movementMultiplier.toStringAsFixed(2)}'),
                 ],
               ),
               const SizedBox(height: 12),
@@ -587,7 +717,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                       onPressed: () => _rollGacha(context, amount: 1),
                       icon: const Icon(Icons.shopping_basket,
                           color: Colors.white, size: 18),
-                      label: const Text('x1 (1000)',
+                      label: Text(l10n.openOne,
                           style: TextStyle(
                               fontFamily: 'Orbitron',
                               color: Colors.white,
@@ -607,7 +737,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                       onPressed: () => _rollGacha(context, amount: 10),
                       icon: const Icon(Icons.shopping_cart_checkout,
                           color: Colors.white, size: 18),
-                      label: const Text('x10 (10000)',
+                      label: Text(l10n.openTen,
                           style: TextStyle(
                               fontFamily: 'Orbitron',
                               color: Colors.white,
@@ -619,7 +749,7 @@ class _InventoryScreenState extends State<InventoryScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'Bảo đảm LEGENDARY: ${gameState.gachaPity}/80',
+                l10n.legendaryGuarantee(gameState.gachaPity),
                 style: const TextStyle(
                   color: Colors.amberAccent,
                   fontFamily: 'Orbitron',
@@ -637,6 +767,7 @@ class _InventoryScreenState extends State<InventoryScreen>
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             itemCount: EquipmentItem.database.length,
             itemBuilder: (context, index) {
+              final l10n = AppLocalizations.of(context)!;
               final item = EquipmentItem.database[index];
               final isOwned = gameState.ownedEquipment.contains(item.id);
               final slotName = item.slot.toString().split('.').last;
@@ -689,7 +820,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                           ),
                       ],
                     ),
-                    title: Text(item.name,
+                    title: Text(l10n.equipmentName(item),
                         style: TextStyle(
                             color: item.color,
                             fontFamily: 'Orbitron',
@@ -698,14 +829,14 @@ class _InventoryScreenState extends State<InventoryScreen>
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.description,
+                        Text(l10n.equipmentDescription(item),
                             style: const TextStyle(
                                 color: Colors.white54, fontSize: 12)),
                         const SizedBox(height: 4),
                         Row(children: [
-                          _rarityBadge(item.rarity),
+                          _rarityBadge(context, item.rarity),
                           const SizedBox(width: 6),
-                          Text('Vị trí: ${slotName.toUpperCase()}',
+                          Text(l10n.location(l10n.equipmentSlot(item.slot)),
                               style: const TextStyle(
                                   color: Colors.cyanAccent, fontSize: 10)),
                         ]),
@@ -723,8 +854,25 @@ class _InventoryScreenState extends State<InventoryScreen>
     );
   }
 
+  Widget _statChip(String label, String value) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF151b35),
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(color: Colors.cyanAccent.withAlpha(65)),
+        ),
+        child: Text('$label $value',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontFamily: 'Orbitron',
+              fontSize: 8,
+              fontWeight: FontWeight.w600,
+            )),
+      );
+
   Widget _buildItemAction(BuildContext context, EquipmentItem item,
       bool isOwned, bool isEquipped, bool canBuy, String slotName) {
+    final l10n = AppLocalizations.of(context)!;
     if (isOwned && isEquipped) {
       return ElevatedButton(
         style: ElevatedButton.styleFrom(
@@ -736,8 +884,8 @@ class _InventoryScreenState extends State<InventoryScreen>
             gameState.store();
           });
         },
-        child: const Text('THÁO',
-            style: TextStyle(fontFamily: 'Orbitron', fontSize: 10)),
+        child: Text(l10n.unequip,
+            style: const TextStyle(fontFamily: 'Orbitron', fontSize: 10)),
       );
     }
     if (isOwned) {
@@ -751,8 +899,8 @@ class _InventoryScreenState extends State<InventoryScreen>
             gameState.store();
           });
         },
-        child: const Text('TRANG BỊ',
-            style: TextStyle(fontFamily: 'Orbitron', fontSize: 10)),
+        child: Text(l10n.equip,
+            style: const TextStyle(fontFamily: 'Orbitron', fontSize: 10)),
       );
     }
     if (canBuy) {
@@ -770,12 +918,12 @@ class _InventoryScreenState extends State<InventoryScreen>
               gameState.store();
             });
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('✅ Đã mua ${item.name}!'),
+              content: Text(l10n.purchaseSuccess(l10n.equipmentName(item))),
               backgroundColor: Colors.green.shade800,
             ));
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('❌ Không đủ xu!'),
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(l10n.notEnoughCoins),
               backgroundColor: Colors.red,
             ));
           }
@@ -793,7 +941,7 @@ class _InventoryScreenState extends State<InventoryScreen>
         border: Border.all(color: item.color.withAlpha(150)),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text('MỞ RƯƠNG',
+      child: Text(l10n.openChest,
           style: TextStyle(
               fontFamily: 'Orbitron',
               fontSize: 10,
@@ -802,10 +950,11 @@ class _InventoryScreenState extends State<InventoryScreen>
   }
 
   void _rollGacha(BuildContext context, {int amount = 1}) {
+    final l10n = AppLocalizations.of(context)!;
     final int gachaCost = 1000 * amount;
     if (gameState.coins < gachaCost) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('❌ Cần $gachaCost xu để mở rương!'),
+        content: Text(l10n.gachaNeedCoins(gachaCost)),
         backgroundColor: Colors.red,
       ));
       return;
@@ -878,7 +1027,7 @@ class _InventoryScreenState extends State<InventoryScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('✨ KẾT QUẢ MỞ RƯƠNG ✨',
+                Text(l10n.gachaResult,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontFamily: 'Orbitron',
@@ -913,9 +1062,9 @@ class _InventoryScreenState extends State<InventoryScreen>
                             tint: results.first.equipment!.color)),
                   ),
                   const SizedBox(height: 16),
-                  _rarityBadge(results.first.equipment!.rarity),
+                  _rarityBadge(context, results.first.equipment!.rarity),
                   const SizedBox(height: 8),
-                  Text(results.first.equipment!.name,
+                  Text(l10n.equipmentName(results.first.equipment!),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           fontFamily: 'Orbitron',
@@ -923,7 +1072,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                           fontWeight: FontWeight.bold,
                           fontSize: 16)),
                   const SizedBox(height: 6),
-                  Text(results.first.equipment!.description,
+                  Text(l10n.equipmentDescription(results.first.equipment!),
                       textAlign: TextAlign.center,
                       style:
                           const TextStyle(color: Colors.white60, fontSize: 13)),
@@ -938,7 +1087,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                         fit: BoxFit.contain,
                       ),
                       const SizedBox(width: 8),
-                      Text('+$totalStonesGained Đá Năng Lượng',
+                      Text(l10n.energyStonesGained(totalStonesGained),
                           style: const TextStyle(
                               color: Colors.cyanAccent,
                               fontSize: 16,
@@ -954,7 +1103,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                         fit: BoxFit.contain,
                       ),
                       const SizedBox(width: 8),
-                      Text('+$totalCoresGained Lõi Năng Lượng',
+                      Text(l10n.energyCoresGained(totalCoresGained),
                           style: const TextStyle(
                               color: Colors.amberAccent,
                               fontSize: 16,
@@ -963,15 +1112,14 @@ class _InventoryScreenState extends State<InventoryScreen>
                   if (duplicatesConverted > 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                          '($duplicatesConverted trùng lặp đã được quy đổi)',
+                      child: Text(l10n.duplicatesConverted(duplicatesConverted),
                           style: const TextStyle(
                               color: Colors.white54, fontSize: 11)),
                     ),
                   const SizedBox(height: 16),
 
                   if (equipmentGained.isNotEmpty) ...[
-                    const Text('TRANG BỊ MỚI NHẬN:',
+                    Text(l10n.equipmentReceived,
                         style: TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -1006,7 +1154,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                                             size: 50, tint: eq.color)),
                                   ),
                                   const SizedBox(height: 4),
-                                  _rarityBadge(eq.rarity),
+                                  _rarityBadge(context, eq.rarity),
                                 ],
                               ),
                             );
@@ -1021,8 +1169,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                       minimumSize: const Size(double.infinity, 44)),
                   onPressed: () =>
                       Navigator.of(dialogContext, rootNavigator: false).pop(),
-                  child: const Text('TUYỆT VỜI!',
-                      style: TextStyle(
+                  child: Text(l10n.great,
+                      style: const TextStyle(
                           fontFamily: 'Orbitron',
                           color: Colors.black,
                           fontWeight: FontWeight.bold)),
@@ -1035,12 +1183,16 @@ class _InventoryScreenState extends State<InventoryScreen>
     );
   }
 
-  Widget _rarityBadge(Rarity rarity) {
+  Widget _rarityBadge(BuildContext context, Rarity rarity) {
+    final l10n = AppLocalizations.of(context)!;
     final Map<Rarity, Map<String, dynamic>> info = {
-      Rarity.common: {'label': 'COMMON', 'color': Colors.white70},
-      Rarity.rare: {'label': 'RARE', 'color': Colors.greenAccent},
-      Rarity.epic: {'label': 'EPIC', 'color': Colors.purpleAccent},
-      Rarity.legendary: {'label': 'LEGENDARY', 'color': Colors.orangeAccent},
+      Rarity.common: {'label': l10n.rarityCommon, 'color': Colors.white70},
+      Rarity.rare: {'label': l10n.rarityRare, 'color': Colors.greenAccent},
+      Rarity.epic: {'label': l10n.rarityEpic, 'color': Colors.purpleAccent},
+      Rarity.legendary: {
+        'label': l10n.rarityLegendary,
+        'color': Colors.orangeAccent
+      },
     };
     final data = info[rarity]!;
     return Container(
@@ -1093,7 +1245,9 @@ class _InventoryScreenState extends State<InventoryScreen>
     );
   }
 
-  Widget _buildSlot(EquipmentSlot slot, IconData fallbackIcon) {
+  Widget _buildSlot(
+      BuildContext context, EquipmentSlot slot, IconData fallbackIcon) {
+    final l10n = AppLocalizations.of(context)!;
     String slotName = slot.toString().split('.').last;
     String? equippedId = gameState.equippedLoadout[slotName];
     EquipmentItem? item =
@@ -1120,7 +1274,7 @@ class _InventoryScreenState extends State<InventoryScreen>
           ),
         ),
         const SizedBox(height: 5),
-        Text(slotName.toUpperCase(),
+        Text(l10n.equipmentSlot(slot),
             style: const TextStyle(
                 color: Colors.white70,
                 fontFamily: 'Orbitron',
@@ -1129,7 +1283,7 @@ class _InventoryScreenState extends State<InventoryScreen>
         if (item != null)
           SizedBox(
               width: 68,
-              child: Text(item.name,
+              child: Text(l10n.equipmentName(item),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: item.color, fontSize: 7),
                   maxLines: 2,
@@ -1138,7 +1292,8 @@ class _InventoryScreenState extends State<InventoryScreen>
     );
   }
 
-  Widget _buildEquipmentUpgrade() {
+  Widget _buildEquipmentUpgrade(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final ownedItems = gameState.ownedEquipment
         .map((id) => EquipmentItem.getById(id))
         .where((e) => e != null)
@@ -1146,9 +1301,9 @@ class _InventoryScreenState extends State<InventoryScreen>
         .toList();
 
     if (ownedItems.isEmpty) {
-      return const Center(
-          child: Text('Chưa sở hữu trang bị nào!',
-              style: TextStyle(color: Colors.white54)));
+      return Center(
+          child: Text(l10n.noEquipment,
+              style: const TextStyle(color: Colors.white54)));
     }
 
     return ListView.builder(
@@ -1199,28 +1354,28 @@ class _InventoryScreenState extends State<InventoryScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.name,
+                    Text(l10n.equipmentName(item),
                         style: TextStyle(
                             color: item.color,
                             fontFamily: 'Orbitron',
                             fontWeight: FontWeight.bold,
                             fontSize: 13)),
                     if (unlocksAtTen)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 4),
-                        child: Text('Cần 4 món đang trang bị đạt cấp 9',
-                            style: TextStyle(
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(l10n.upgradeUnlockRequirement,
+                            style: const TextStyle(
                                 color: Colors.amberAccent, fontSize: 10)),
                       ),
                     if (isMaxLevel)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 4),
-                        child: Text('Đã đạt cấp tối đa: 100',
-                            style: TextStyle(
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(l10n.maxLevelReached,
+                            style: const TextStyle(
                                 color: Colors.amberAccent, fontSize: 10)),
                       ),
                     const SizedBox(height: 4),
-                    Text('Cấp $level ➔ ${level + 1}',
+                    Text(l10n.levelChange(level, level + 1),
                         style: const TextStyle(
                             color: Colors.cyanAccent,
                             fontSize: 11,
@@ -1269,14 +1424,14 @@ class _InventoryScreenState extends State<InventoryScreen>
                           gameState.store();
                         });
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(
-                              '✨ Đã nâng cấp ${item.name} lên Level ${level + 1}!'),
+                          content: Text(l10n.upgradeSuccess(
+                              l10n.equipmentName(item), level + 1)),
                           backgroundColor: Colors.green.shade800,
                         ));
                       }
                     : null,
-                child: const Text('NÂNG',
-                    style: TextStyle(
+                child: Text(l10n.upgrade,
+                    style: const TextStyle(
                         fontFamily: 'Orbitron',
                         fontSize: 11,
                         fontWeight: FontWeight.bold,

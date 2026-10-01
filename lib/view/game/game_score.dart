@@ -3,19 +3,24 @@ import 'package:mini__game2/controller/game/game_demo_node.dart';
 import 'package:mini__game2/controller/player_state.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
 import 'package:mini__game2/controller/rewarded_ad_service.dart';
+import 'package:mini__game2/l10n/generated/app_localizations.dart';
+import 'package:mini__game2/l10n/game_localizations.dart';
 import 'package:mini__game2/main.dart';
+import 'package:mini__game2/model/run_upgrade.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 class GameScene extends StatefulWidget {
   const GameScene({
     this.onGameOver,
     this.gameState,
+    required this.localizations,
     this.isEventMode = false,
     Key? key,
   }) : super(key: key);
 
   final GameOverCallback? onGameOver;
   final PersistantGameState? gameState;
+  final AppLocalizations localizations;
   final bool isEventMode;
 
   @override
@@ -26,6 +31,8 @@ class GameSceneState extends State<GameScene> {
   late GameDemoNode _game;
   bool _isPaused = false;
   List<BossBuffReward>? _bossBuffChoices;
+  int? _runUpgradeLevel;
+  List<RunUpgradeReward>? _runUpgradeChoices;
   bool _showReviveOffer = false;
   bool _powerAdUsed = false;
   bool _showingRewardedAd = false;
@@ -41,6 +48,7 @@ class GameSceneState extends State<GameScene> {
       sounds,
       widget.gameState!,
       widget.isEventMode,
+      widget.localizations,
       (
         int score,
         int coins,
@@ -54,6 +62,15 @@ class GameSceneState extends State<GameScene> {
         if (!mounted) return;
         _game.pause();
         setState(() => _bossBuffChoices = choices);
+      },
+      onRunLevelUp: (level, choices) {
+        if (!mounted) return;
+        sounds.playEffect('levelup');
+        _game.pause();
+        setState(() {
+          _runUpgradeLevel = level;
+          _runUpgradeChoices = choices;
+        });
       },
       onReviveOffer: () {
         if (mounted) setState(() => _showReviveOffer = true);
@@ -93,9 +110,19 @@ class GameSceneState extends State<GameScene> {
     // A double tap can arrive before Flutter removes the choice panel.
     // Accept only the first selection and resume the game once.
     if (_bossBuffChoices == null) return;
-    _game.chooseBossBuff(reward);
     setState(() => _bossBuffChoices = null);
-    if (!_isPaused) _game.resume();
+    final runUpgradeIsNext = _game.chooseBossBuff(reward);
+    if (!runUpgradeIsNext && !_isPaused) _game.resume();
+  }
+
+  void _chooseRunUpgrade(RunUpgradeReward reward) {
+    if (_runUpgradeChoices == null) return;
+    setState(() {
+      _runUpgradeChoices = null;
+      _runUpgradeLevel = null;
+    });
+    final anotherChoiceIsNext = _game.chooseRunUpgrade(reward);
+    if (!anotherChoiceIsNext && !_isPaused) _game.resume();
   }
 
   void _togglePause() {
@@ -120,6 +147,7 @@ class GameSceneState extends State<GameScene> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
         body: Stack(
       children: [
@@ -155,6 +183,185 @@ class GameSceneState extends State<GameScene> {
         ),
 
         // ── Pause overlay ─────────────────────────────────────────────
+        ValueListenableBuilder<int>(
+          valueListenable: _game.riftChargeNotifier,
+          builder: (context, charge, _) {
+            final ready = charge >= 100;
+            return Positioned(
+              right: 14,
+              bottom: 22,
+              child: SafeArea(
+                top: false,
+                left: false,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: ready && !_showReviveOffer && _bossBuffChoices == null
+                      ? _game.activateRiftBurst
+                      : null,
+                  child: Container(
+                    width: 126,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: const Color(0xE6101730),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(
+                        color: ready ? const Color(0xFFB56CFF) : Colors.white24,
+                        width: ready ? 1.6 : 1,
+                      ),
+                      boxShadow: ready
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF9B5CFF).withAlpha(110),
+                                blurRadius: 16,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : const [],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.auto_awesome,
+                                color: ready
+                                    ? const Color(0xFFD8A2FF)
+                                    : Colors.white54,
+                                size: 15),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text(
+                                AppLocalizations.of(context)!.riftBurst,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: ready ? Colors.white : Colors.white70,
+                                  fontFamily: 'Orbitron',
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: charge / 100,
+                            minHeight: 4,
+                            backgroundColor: Colors.white12,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              ready
+                                  ? const Color(0xFFD18BFF)
+                                  : const Color(0xFF6B56C8),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          ready
+                              ? AppLocalizations.of(context)!.riftBurstReady
+                              : '$charge%',
+                          style: TextStyle(
+                            color: ready
+                                ? const Color(0xFFD8A2FF)
+                                : Colors.white60,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+
+        ValueListenableBuilder<int>(
+          valueListenable: _game.phaseShiftCooldown,
+          builder: (context, cooldown, _) {
+            final ready = cooldown == 0;
+            const accent = Color(0xFF55E8FF);
+            return Positioned(
+              right: 14,
+              bottom: 82,
+              child: SafeArea(
+                top: false,
+                left: false,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: ready && !_showReviveOffer && _bossBuffChoices == null
+                      ? _game.activatePhaseShift
+                      : null,
+                  child: Container(
+                    width: 126,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xE6101730),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(
+                        color: ready ? accent : Colors.white24,
+                        width: ready ? 1.5 : 1,
+                      ),
+                      boxShadow: ready
+                          ? [
+                              BoxShadow(
+                                color: accent.withAlpha(90),
+                                blurRadius: 14,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : const [],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.bolt,
+                                color: ready ? accent : Colors.white54,
+                                size: 16),
+                            const SizedBox(width: 5),
+                            Text(
+                              AppLocalizations.of(context)!.phaseShift,
+                              style: TextStyle(
+                                color: ready ? Colors.white : Colors.white70,
+                                fontFamily: 'Orbitron',
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          ready
+                              ? AppLocalizations.of(context)!.phaseShiftReady
+                              : '${cooldown}s',
+                          style: TextStyle(
+                            color: ready ? accent : Colors.white60,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+
         if (_isPaused)
           Container(
             color: Colors.black.withAlpha(180),
@@ -180,8 +387,8 @@ class GameSceneState extends State<GameScene> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Title
-                    const Text(
-                      'Tạm dừng',
+                    Text(
+                      l10n.pauseTitle,
                       style: TextStyle(
                         fontFamily: 'Orbitron',
                         color: Colors.cyanAccent,
@@ -199,7 +406,7 @@ class GameSceneState extends State<GameScene> {
 
                     // Resume button
                     _PauseMenuButton(
-                      label: 'Tiếp tục',
+                      label: l10n.resume,
                       icon: Icons.play_arrow,
                       color: Colors.cyanAccent,
                       onTap: _togglePause,
@@ -208,7 +415,8 @@ class GameSceneState extends State<GameScene> {
 
                     if (!_powerAdUsed) ...[
                       _PauseMenuButton(
-                        label: _showingRewardedAd ? 'Đang tải...' : 'Buff dame',
+                        label:
+                            _showingRewardedAd ? l10n.loading : l10n.powerBoost,
                         icon: Icons.play_circle_outline,
                         color: Colors.amberAccent,
                         onTap: _watchPowerAd,
@@ -218,7 +426,7 @@ class GameSceneState extends State<GameScene> {
 
                     // Quit button
                     _PauseMenuButton(
-                      label: 'Thoát',
+                      label: l10n.quit,
                       icon: Icons.exit_to_app,
                       color: Colors.redAccent,
                       onTap: () {
@@ -228,21 +436,21 @@ class GameSceneState extends State<GameScene> {
                             backgroundColor: const Color(0xFF0d0d2b),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16)),
-                            title: const Text('Thoát game?',
+                            title: Text(l10n.quitTitle,
                                 style: TextStyle(
                                     fontFamily: 'Orbitron',
                                     color: Colors.white,
                                     fontSize: 16)),
-                            content: const Text(
-                              'Trận đấu sẽ bị kết thúc và điểm sẽ không được lưu.',
+                            content: Text(
+                              l10n.quitWarning,
                               style: TextStyle(
                                   color: Colors.white60, fontSize: 13),
                             ),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(dialogContext),
-                                child: const Text('Tiếp tục',
-                                    style: TextStyle(
+                                child: Text(l10n.resume,
+                                    style: const TextStyle(
                                         fontFamily: 'Orbitron',
                                         color: Colors.cyanAccent)),
                               ),
@@ -251,8 +459,8 @@ class GameSceneState extends State<GameScene> {
                                   Navigator.pop(dialogContext); // close dialog
                                   _quitGame();
                                 },
-                                child: const Text('Thóa',
-                                    style: TextStyle(
+                                child: Text(l10n.quit,
+                                    style: const TextStyle(
                                         fontFamily: 'Orbitron',
                                         color: Colors.redAccent)),
                               ),
@@ -271,6 +479,14 @@ class GameSceneState extends State<GameScene> {
             child: _BossBuffPanel(
               choices: _bossBuffChoices!,
               onSelected: _chooseBossBuff,
+            ),
+          ),
+        if (_runUpgradeChoices != null)
+          Positioned.fill(
+            child: _RunUpgradePanel(
+              level: _runUpgradeLevel ?? 1,
+              choices: _runUpgradeChoices!,
+              onSelected: _chooseRunUpgrade,
             ),
           ),
         if (_showReviveOffer)
@@ -301,36 +517,39 @@ class _RewardedRevivePanel extends StatelessWidget {
   final VoidCallback onEndRun;
 
   @override
-  Widget build(BuildContext context) => Container(
-        color: Colors.black.withAlpha(210),
-        alignment: Alignment.center,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 32),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0D0D2B),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.cyanAccent),
-          ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('Hồi sinh',
-                style: TextStyle(color: Colors.white, fontSize: 20)),
-            const SizedBox(height: 8),
-            const Text('Xem quảng cáo để hồi sinh và tiếp tục trận đấu',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70)),
-            const SizedBox(height: 18),
-            ElevatedButton(
-              onPressed: isLoading ? null : onWatch,
-              child: Text(isLoading ? 'Đang tải...' : 'Xem quảng cáo'),
-            ),
-            TextButton(
-              onPressed: isLoading ? null : onEndRun,
-              child: const Text('Về trang chủ'),
-            ),
-          ]),
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      color: Colors.black.withAlpha(210),
+      alignment: Alignment.center,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D0D2B),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.cyanAccent),
         ),
-      );
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(l10n.revive,
+              style: TextStyle(color: Colors.white, fontSize: 20)),
+          const SizedBox(height: 8),
+          Text(l10n.reviveDescription,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70)),
+          const SizedBox(height: 18),
+          ElevatedButton(
+            onPressed: isLoading ? null : onWatch,
+            child: Text(isLoading ? l10n.loading : l10n.watchAd),
+          ),
+          TextButton(
+            onPressed: isLoading ? null : onEndRun,
+            child: Text(l10n.home),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 class _BossBuffPanel extends StatelessWidget {
@@ -347,6 +566,7 @@ class _BossBuffPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       color: Colors.black.withAlpha(185),
       alignment: Alignment.center,
@@ -365,7 +585,7 @@ class _BossBuffPanel extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Boss đã bị đánh bại!',
+            Text(l10n.bossDefeated,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     color: Colors.white,
@@ -374,7 +594,7 @@ class _BossBuffPanel extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.1)),
             const SizedBox(height: 10),
-            const Text('Chọn một buff',
+            Text(l10n.chooseBuff,
                 style: TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 16),
             ...choices.map((reward) {
@@ -392,11 +612,11 @@ class _BossBuffPanel extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: Column(children: [
-                      Text(reward.vietnameseLabel,
+                      Text(_labelFor(reward, l10n),
                           style: const TextStyle(
                               fontFamily: 'Orbitron',
                               fontWeight: FontWeight.bold)),
-                      Text(reward.vietnameseDescription,
+                      Text(_descriptionFor(reward, l10n),
                           style: const TextStyle(color: Colors.white)),
                     ]),
                   ),
@@ -404,6 +624,171 @@ class _BossBuffPanel extends StatelessWidget {
               );
             }),
           ],
+        ),
+      ),
+    );
+  }
+
+  String _labelFor(BossBuffReward reward, AppLocalizations l10n) =>
+      switch (reward.type) {
+        BossBuffType.green => l10n.damageBuffTitle,
+        BossBuffType.purple => l10n.fireRateBuffTitle,
+        BossBuffType.gold => l10n.rareDamageBuffTitle,
+      };
+
+  String _descriptionFor(BossBuffReward reward, AppLocalizations l10n) =>
+      switch (reward.type) {
+        BossBuffType.green => l10n.damageBuff(reward.percent),
+        BossBuffType.purple => l10n.fireRateBuff(reward.percent),
+        BossBuffType.gold => l10n.damageBuff(reward.percent),
+      };
+}
+
+class _RunUpgradePanel extends StatelessWidget {
+  const _RunUpgradePanel({
+    required this.level,
+    required this.choices,
+    required this.onSelected,
+  });
+
+  final int level;
+  final List<RunUpgradeReward> choices;
+  final ValueChanged<RunUpgradeReward> onSelected;
+
+  IconData _iconFor(RunUpgradeType type) => switch (type) {
+        RunUpgradeType.weaponDamage => Icons.flash_on,
+        RunUpgradeType.fireRate => Icons.speed,
+        RunUpgradeType.multishot => Icons.blur_on,
+        RunUpgradeType.critical => Icons.gps_fixed,
+        RunUpgradeType.thrusters => Icons.rocket_launch,
+        RunUpgradeType.hull => Icons.shield,
+        RunUpgradeType.repair => Icons.healing,
+        RunUpgradeType.riftCharge => Icons.auto_awesome,
+        RunUpgradeType.shield => Icons.security,
+      };
+
+  Color _colorFor(RunUpgradeType type) => switch (type) {
+        RunUpgradeType.weaponDamage ||
+        RunUpgradeType.fireRate =>
+          const Color(0xFFFFB84D),
+        RunUpgradeType.multishot ||
+        RunUpgradeType.critical =>
+          const Color(0xFF69E5FF),
+        RunUpgradeType.thrusters ||
+        RunUpgradeType.riftCharge =>
+          const Color(0xFFBE8CFF),
+        RunUpgradeType.hull ||
+        RunUpgradeType.repair ||
+        RunUpgradeType.shield =>
+          const Color(0xFF71F0B5),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final panelWidth = (MediaQuery.sizeOf(context).width - 40.0).clamp(
+      280.0,
+      380.0,
+    );
+    return Container(
+      color: Colors.black.withAlpha(205),
+      alignment: Alignment.center,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Container(
+            width: panelWidth,
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
+            decoration: BoxDecoration(
+              color: const Color(0xF00A1428),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF55E8FF), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF55E8FF).withAlpha(65),
+                  blurRadius: 28,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.upgrade, color: Color(0xFF55E8FF), size: 30),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.runUpgradeTitle(level),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'Orbitron',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  l10n.runUpgradeSubtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+                const SizedBox(height: 14),
+                ...choices.map((reward) {
+                  final color = _colorFor(reward.type);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Material(
+                      color: color.withAlpha(22),
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => onSelected(reward),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 11),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: color.withAlpha(170)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(_iconFor(reward.type),
+                                  color: color, size: 23),
+                              const SizedBox(width: 11),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      l10n.runUpgradeName(reward.type),
+                                      style: TextStyle(
+                                        color: color,
+                                        fontFamily: 'Orbitron',
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      l10n.runUpgradeDescription(reward.type),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right,
+                                  color: Colors.white54),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
         ),
       ),
     );
