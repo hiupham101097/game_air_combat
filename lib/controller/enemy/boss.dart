@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
 import 'package:mini__game2/controller/enemy/boss_attack_patterns.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
+import 'package:mini__game2/controller/enemy/projectile_style.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
 import 'package:mini__game2/model/custom_actions.dart';
 import 'package:mini__game2/controller/explosions.dart';
@@ -14,12 +15,12 @@ import 'package:spritewidget/spritewidget.dart';
 import 'package:vector_math/vector_math_64.dart';
 
 class EnemyBoss extends Obstacle {
-  EnemyBoss(GameObjectFactory f, int level) : super(f) {
+  EnemyBoss(GameObjectFactory f, this._bossLevel) : super(f) {
     radius = 48.0;
-    _sprite = Sprite(texture: f.sheet["enemy_boss_${level % 3}.png"]!);
+    _sprite = Sprite(texture: f.sheet["enemy_boss_${_bossLevel % 3}.png"]!);
     _sprite.scale = 0.32;
     addChild(_sprite);
-    maxDamage = GameBalance.bossHealth(level, 0.90);
+    maxDamage = GameBalance.bossHealth(_bossLevel, 0.90);
 
     constraints = <Constraint>[
       ConstraintRotationToNode(targetNode: f.level.ship, dampening: 0.05)
@@ -39,8 +40,9 @@ class EnemyBoss extends Obstacle {
 
   late Sprite _sprite;
   late PowerBar _powerBar;
+  final int _bossLevel;
 
-  int _countDown = randomInt(120) + 240;
+  int _countDown = GameBalance.bossAttackCooldown(randomInt(120) + 240);
   int _currentPhase = 1;
   double _lockedAngle = 0.0;
 
@@ -62,22 +64,32 @@ class EnemyBoss extends Obstacle {
       if (_currentPhase < 3) rotation = _lockedAngle;
 
       if (_currentPhase == 1) {
-        fire(10.0);
-        fire(0.0);
-        fire(-10.0);
-        _countDown = 60 + randomInt(60);
-      } else if (_currentPhase == 2) {
-        fire(20.0);
-        fire(10.0);
-        fire(0.0);
-        fire(-10.0);
-        fire(-20.0);
-        _countDown = 40 + randomInt(40);
-      } else if (_currentPhase == 3) {
-        for (double a = 0; a < 360; a += 45) {
-          fire(a);
+        final count = 3 + GameBalance.bossExtraProjectiles(_bossLevel);
+        for (var index = 0; index < count; index++) {
+          fire(10.0 - index * (20.0 / (count - 1)));
         }
-        _countDown = 30 + randomInt(30);
+        _countDown = GameBalance.bossAttackCooldown(
+          60 + randomInt(60),
+          level: _bossLevel,
+        );
+      } else if (_currentPhase == 2) {
+        final count = 5 + GameBalance.bossExtraProjectiles(_bossLevel);
+        for (var index = 0; index < count; index++) {
+          fire(20.0 - index * (40.0 / (count - 1)));
+        }
+        _countDown = GameBalance.bossAttackCooldown(
+          40 + randomInt(40),
+          level: _bossLevel,
+        );
+      } else if (_currentPhase == 3) {
+        final count = 8 + GameBalance.bossExtraProjectiles(_bossLevel);
+        for (var index = 0; index < count; index++) {
+          fire(index * 360.0 / count);
+        }
+        _countDown = GameBalance.bossAttackCooldown(
+          30 + randomInt(30),
+          level: _bossLevel,
+        );
       }
     }
   }
@@ -89,8 +101,11 @@ class EnemyBoss extends Obstacle {
     EnemyLaser laser = EnemyLaser(
       f,
       r + 90.0,
-      5.0,
+      GameBalance.bossProjectileSpeed(5.0, _bossLevel),
       const Color(0xffffe38e),
+      style: _currentPhase == 3
+          ? EnemyProjectileStyle.riftShard
+          : EnemyProjectileStyle.energyBolt,
       motion: _currentPhase == 3
           ? EnemyProjectileMotion.weaving
           : EnemyProjectileMotion.straight,

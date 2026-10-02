@@ -25,6 +25,25 @@ class GameBalance {
     return (145.0 + safeLevel * 26.0 + safeLevel * safeLevel * 2.2) * archetype;
   }
 
+  /// Bosses unlock extra pressure in tiers so every later encounter changes
+  /// its rhythm without letting projectile counts or speeds grow forever.
+  static int bossAttackTier(int level) =>
+      (((level.clamp(1, 60) - 1) ~/ 10).clamp(0, 5)).toInt();
+
+  static int bossExtraProjectiles(int level) =>
+      (bossAttackTier(level) ~/ 2).clamp(0, 2).toInt();
+
+  static double bossProjectileSpeed(double baseSpeed, int level) =>
+      baseSpeed + bossAttackTier(level) * 0.14;
+
+  /// Preserve a clear opening volley, then tighten later boss attack rhythms
+  /// by up to half a second while keeping enough time to dodge.
+  static int bossAttackCooldown(int baseFrames, {int level = 1}) {
+    final base = baseFrames.toDouble();
+    final adjusted = base * 1.4 - bossAttackTier(level) * 6.0;
+    return adjusted.clamp(42.0, math.max(42.0, base * 1.4)).round();
+  }
+
   static int bossScore(int level, {bool miniBoss = false}) {
     final safeLevel = level.clamp(1, 50);
     return (miniBoss ? 180 : 600) + safeLevel * (miniBoss ? 35 : 100);

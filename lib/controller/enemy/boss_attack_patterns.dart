@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
+import 'package:mini__game2/controller/enemy/projectile_style.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
+import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 /// Reusable patterns keep boss volleys consistent while leaving each boss its
@@ -46,6 +48,8 @@ class BossAttackPatterns {
     required double spreadDegrees,
     required double speed,
     required Color color,
+    int bossLevel = 1,
+    EnemyProjectileStyle style = EnemyProjectileStyle.energyBolt,
     EnemyProjectileMotion motion = EnemyProjectileMotion.straight,
     double shipDamage = 1.0,
     double hitRadius = 8.0,
@@ -54,7 +58,10 @@ class BossAttackPatterns {
     double spawnDistance = 24.0,
     bool highVisibility = false,
   }) {
-    final safeCount = count.clamp(1, 24).toInt();
+    final safeCount = (count + GameBalance.bossExtraProjectiles(bossLevel))
+        .clamp(1, 24)
+        .toInt();
+    final scaledSpeed = GameBalance.bossProjectileSpeed(speed, bossLevel);
     final step = safeCount == 1 ? 0.0 : spreadDegrees / (safeCount - 1);
     for (var index = 0; index < safeCount; index++) {
       final angle = centerAngle - spreadDegrees * 0.5 + step * index;
@@ -62,8 +69,9 @@ class BossAttackPatterns {
         factory,
         origin: origin,
         angle: angle,
-        speed: speed,
+        speed: scaledSpeed,
         color: color,
+        style: style,
         motion: motion,
         shipDamage: shipDamage,
         hitRadius: hitRadius,
@@ -82,6 +90,8 @@ class BossAttackPatterns {
     required double startAngle,
     required double speed,
     required Color color,
+    int bossLevel = 1,
+    EnemyProjectileStyle style = EnemyProjectileStyle.energyBolt,
     EnemyProjectileMotion motion = EnemyProjectileMotion.straight,
     double shipDamage = 1.0,
     double hitRadius = 8.0,
@@ -89,15 +99,19 @@ class BossAttackPatterns {
     double spawnDistance = 38.0,
     bool highVisibility = false,
   }) {
-    final safeCount = count.clamp(3, 32).toInt();
+    final safeCount = (count + GameBalance.bossExtraProjectiles(bossLevel))
+        .clamp(3, 32)
+        .toInt();
     final step = 360.0 / safeCount;
+    final scaledSpeed = GameBalance.bossProjectileSpeed(speed, bossLevel);
     for (var index = 0; index < safeCount; index++) {
       _fireShot(
         factory,
         origin: origin,
         angle: startAngle + step * index,
-        speed: speed,
+        speed: scaledSpeed,
         color: color,
+        style: style,
         motion: motion,
         shipDamage: shipDamage,
         hitRadius: hitRadius,
@@ -115,6 +129,7 @@ class BossAttackPatterns {
     required double angle,
     required double speed,
     required Color color,
+    required EnemyProjectileStyle style,
     required EnemyProjectileMotion motion,
     required double shipDamage,
     required double hitRadius,
@@ -129,13 +144,14 @@ class BossAttackPatterns {
       angle + 90.0,
       speed,
       color,
+      style: style,
       motion: motion,
       shipDamage: shipDamage,
       turnRate: turnRate,
       weaveAmplitude: weaveAmplitude,
       highVisibility: highVisibility,
     )
-      ..radius = hitRadius
+      ..radius = math.max(4.5, hitRadius * 0.72)
       ..position = origin +
           Offset(math.cos(radians) * spawnDistance,
               math.sin(radians) * spawnDistance);
@@ -165,29 +181,46 @@ class BossAimTelegraph extends Node {
     final pulse = 0.42 + math.sin(_elapsed * 36.0).abs() * 0.45;
     final end = ray;
     canvas.drawLine(
+        Offset.zero,
+        end,
+        Paint()
+          ..color = const Color(0xEF071020).withValues(alpha: fade * 0.92)
+          ..strokeWidth = 14.0
+          ..strokeCap = StrokeCap.round);
+    canvas.drawLine(
       Offset.zero,
       end,
       Paint()
-        ..color = color.withValues(alpha: fade * pulse * 0.55)
-        ..strokeWidth = 8.0
+        ..color = color.withValues(alpha: fade * pulse * 0.9)
+        ..strokeWidth = 9.0
         ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0),
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0),
     );
     canvas.drawLine(
       Offset.zero,
       end,
       Paint()
-        ..color = color.withValues(alpha: fade * pulse)
-        ..strokeWidth = 1.7
+        ..color = color.withValues(alpha: fade * pulse * 0.98)
+        ..strokeWidth = 3.4
         ..strokeCap = StrokeCap.round,
     );
+    canvas.drawLine(
+      Offset.zero,
+      end,
+      Paint()
+        ..color = const Color(0xF7FFFFFF).withValues(alpha: fade * pulse)
+        ..strokeWidth = 1.15
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawCircle(end, 8.0, Paint()..color = const Color(0xEF071020));
+    canvas.drawCircle(end, 5.0, Paint()..color = color.withValues(alpha: fade));
     canvas.drawCircle(
       end,
       7.0 + math.sin(_elapsed * 28.0).abs() * 3.0,
       Paint()
-        ..color = color.withValues(alpha: fade * pulse)
+        ..color = const Color(0xF7FFFFFF).withValues(alpha: fade * pulse)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
+        ..strokeWidth = 1.6,
     );
   }
 }
@@ -217,9 +250,17 @@ class BossRadialTelegraph extends Node {
         Offset.zero,
         radius,
         Paint()
-          ..color = color.withValues(alpha: fade * pulse * (0.82 - ring * 0.16))
+          ..color = const Color(0xEF071020).withValues(alpha: fade * 0.9)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = ring == 0 ? 2.0 : 1.0,
+          ..strokeWidth = ring == 0 ? 6.0 : 4.0,
+      );
+      canvas.drawCircle(
+        Offset.zero,
+        radius,
+        Paint()
+          ..color = color.withValues(alpha: fade * pulse * (0.92 - ring * 0.12))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = ring == 0 ? 2.8 : 1.8,
       );
     }
   }

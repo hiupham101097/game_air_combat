@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
 import 'package:mini__game2/controller/enemy/boss_attack_patterns.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
+import 'package:mini__game2/controller/enemy/projectile_style.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
 import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
@@ -70,8 +71,10 @@ class EliteEnemy extends Obstacle {
   late double _moveDuration;
   int _countDown = 90;
   int _phaseFrame = 0;
+  int _volley = 0;
   double _animationTime = 0.0;
   double _spriteBaseScale = 1.0;
+  double _lockedAngle = 0.0;
   _RiftWardenAura? _wardenAura;
   PowerBar? _powerBar;
 
@@ -82,6 +85,12 @@ class EliteEnemy extends Obstacle {
       type == EliteEnemyType.novaMiniBoss ||
       type == EliteEnemyType.phantomMiniBoss ||
       type == EliteEnemyType.warshipMiniBoss;
+
+  bool get _usesBossScaling =>
+      _isMiniBoss ||
+      _isGiant ||
+      type == EliteEnemyType.voidSentinel ||
+      type == EliteEnemyType.riftWarden;
 
   void _configureSprite() {
     switch (type) {
@@ -271,11 +280,13 @@ class EliteEnemy extends Obstacle {
       _ => 0.0,
     };
     _countDown = switch (type) {
-      EliteEnemyType.titanBoss || EliteEnemyType.colossusBoss => 65,
+      EliteEnemyType.titanBoss ||
+      EliteEnemyType.colossusBoss =>
+        GameBalance.bossAttackCooldown(65),
       EliteEnemyType.novaMiniBoss ||
       EliteEnemyType.phantomMiniBoss ||
       EliteEnemyType.warshipMiniBoss =>
-        85,
+        GameBalance.bossAttackCooldown(85),
       EliteEnemyType.phaseStalker => 52,
       EliteEnemyType.riftBomber => 104,
       EliteEnemyType.voidSentinel => 82,
@@ -350,11 +361,15 @@ class EliteEnemy extends Obstacle {
         type == EliteEnemyType.voidSentinel ||
         type == EliteEnemyType.riftWarden ||
         _isGiant;
+    final novaMixup = type == EliteEnemyType.novaMiniBoss &&
+        GameBalance.bossAttackTier(threatLevel) >= 1 &&
+        _volley.isOdd;
     _countDown--;
     if (_countDown == 24) {
-      if (isRadial) {
+      if (isRadial && !novaMixup) {
         BossAttackPatterns.telegraphRadial(f, position, color: _shotColor);
       } else {
+        _lockedAngle = BossAttackPatterns.angleToShip(f, position);
         BossAttackPatterns.telegraphAim(f, position, color: _shotColor);
       }
     }
@@ -363,18 +378,22 @@ class EliteEnemy extends Obstacle {
     f.sounds.playEffect('laser');
     // Each mini-boss has a different signature attack:
     // Nova: radial ring; Phantom: fast aimed tri-shot; Warship: heavy fan.
-    final toShip = f.level.ship.position - position;
-    final aimAngle = degrees(math.atan2(toShip.dy, toShip.dx));
-    for (var index = 0; index < _shotCount; index++) {
-      final angle = isRadial
-          ? index * (360.0 / _shotCount) + rotation
-          : aimAngle + (index - (_shotCount - 1) / 2) * 16.0;
+    final shotCount = _shotCount +
+        (_usesBossScaling ? GameBalance.bossExtraProjectiles(threatLevel) : 0);
+    for (var index = 0; index < shotCount; index++) {
+      final angle = isRadial && !novaMixup
+          ? index * (360.0 / shotCount) + rotation
+          : _lockedAngle + (index - (shotCount - 1) / 2) * 16.0;
       final laser = EnemyLaser(
         f,
         // EnemyLaser's 0° points up; this angle uses the math convention.
         angle + 90.0,
-        _laserImpact + threatLevel * 0.5,
+        GameBalance.bossProjectileSpeed(
+          _laserImpact,
+          _usesBossScaling ? threatLevel : 1,
+        ),
         _shotColor,
+        style: _projectileStyle,
         motion: type == EliteEnemyType.riftWarden ||
                 type == EliteEnemyType.riftBomber
             ? EnemyProjectileMotion.weaving
@@ -394,20 +413,50 @@ class EliteEnemy extends Obstacle {
               math.sin(radiansValue) * radius * 0.6);
       f.level.addChild(laser);
     }
+    _volley++;
     final attackCooldown = switch (type) {
-      EliteEnemyType.titanBoss || EliteEnemyType.colossusBoss => 42,
-      EliteEnemyType.phantomMiniBoss || EliteEnemyType.phaseStalker => 48,
-      EliteEnemyType.warshipMiniBoss => 68,
+      EliteEnemyType.titanBoss ||
+      EliteEnemyType.colossusBoss =>
+        GameBalance.bossAttackCooldown(65),
+      EliteEnemyType.phantomMiniBoss => GameBalance.bossAttackCooldown(72),
+      EliteEnemyType.warshipMiniBoss => GameBalance.bossAttackCooldown(90),
       EliteEnemyType.riftBomber => 102,
       EliteEnemyType.voidSentinel => 74,
       EliteEnemyType.riftLeech => 58,
       EliteEnemyType.shardBrood => 72,
       EliteEnemyType.riftWarden => 92,
-      EliteEnemyType.novaMiniBoss => 55,
+      EliteEnemyType.novaMiniBoss => GameBalance.bossAttackCooldown(72),
       _ => 90,
     };
-    _countDown = attackCooldown - (threatLevel * 3).clamp(0, 25);
+    final tierReduction =
+        _usesBossScaling ? GameBalance.bossAttackTier(threatLevel) * 6 : 0;
+    _countDown = (attackCooldown -
+            (threatLevel * 3).clamp(0, 25).toInt() -
+            tierReduction)
+        .clamp(42, attackCooldown)
+        .toInt();
   }
+
+  EnemyProjectileStyle get _projectileStyle => switch (type) {
+        EliteEnemyType.plasmaWasp ||
+        EliteEnemyType.novaMiniBoss =>
+          EnemyProjectileStyle.plasmaOrb,
+        EliteEnemyType.cometRammer ||
+        EliteEnemyType.siegeFighter ||
+        EliteEnemyType.warshipMiniBoss ||
+        EliteEnemyType.titanBoss ||
+        EliteEnemyType.colossusBoss =>
+          EnemyProjectileStyle.railSlug,
+        EliteEnemyType.phaseStalker ||
+        EliteEnemyType.voidSentinel ||
+        EliteEnemyType.shardBrood ||
+        EliteEnemyType.riftWarden ||
+        EliteEnemyType.phantomMiniBoss =>
+          EnemyProjectileStyle.riftShard,
+        EliteEnemyType.riftBomber => EnemyProjectileStyle.venomGlob,
+        EliteEnemyType.riftLeech => EnemyProjectileStyle.seekerMissile,
+        _ => EnemyProjectileStyle.energyBolt,
+      };
 
   Color get _shotColor => switch (type) {
         EliteEnemyType.phaseStalker => const Color(0xFFFF4DFF),

@@ -237,6 +237,7 @@ Trong tuyệt vọng, các xưởng đóng tàu cuối cùng thu hồi lõi năn
 | Tài nguyên | Mô tả | Kích thước trong game | Đường dẫn | Công cụ |
 | --- | --- | --- | --- | --- |
 | Chiến Cơ Siêu Hạng | Chiến cơ thử nghiệm hướng thẳng lên, nền trong suốt | Khoảng 63×63 px | `assets/ships/ship_superfighter.png` | image_gen tích hợp |
+| Guardian | Armored blue heavy gunship with an integrated cyan shield core | Khoảng 63×63 px | `assets/ships/ship_guardian.png` | image_gen tích hợp |
 
 ## Combat expansion
 

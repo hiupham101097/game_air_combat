@@ -78,12 +78,12 @@ class TopBar extends StatelessWidget {
               tooltip: l10n.language,
               onSelected: onLocaleChanged,
               itemBuilder: (context) => [
+                PopupMenuItem(value: 'en', child: Text(l10n.english)),
+                PopupMenuItem(value: 'vi', child: Text(l10n.vietnamese)),
                 PopupMenuItem(
                   value: 'system',
                   child: Text(l10n.useDeviceLanguage),
                 ),
-                PopupMenuItem(value: 'vi', child: Text(l10n.vietnamese)),
-                PopupMenuItem(value: 'en', child: Text(l10n.english)),
               ],
               child: Container(
                 width: 68,

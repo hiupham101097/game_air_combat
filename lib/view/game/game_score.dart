@@ -45,6 +45,7 @@ class GameSceneState extends State<GameScene> {
       imageMap,
       spriteSheet,
       spriteSheetUI,
+      enemyProjectileAnimations,
       sounds,
       widget.gameState!,
       widget.isEventMode,
@@ -330,14 +331,18 @@ class GameSceneState extends State<GameScene> {
                                 color: ready ? accent : Colors.white54,
                                 size: 16),
                             const SizedBox(width: 5),
-                            Text(
-                              AppLocalizations.of(context)!.phaseShift,
-                              style: TextStyle(
-                                color: ready ? Colors.white : Colors.white70,
-                                fontFamily: 'Orbitron',
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.4,
+                            Flexible(
+                              child: Text(
+                                AppLocalizations.of(context)!.phaseShift,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: ready ? Colors.white : Colors.white70,
+                                  fontFamily: 'Orbitron',
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.4,
+                                ),
                               ),
                             ),
                           ],

@@ -104,6 +104,7 @@ class _InventoryScreenState extends State<InventoryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _equipmentSubTab = 0; // 0 = Inventory, 1 = Upgrade
+  bool _showCombatStatDetails = false;
 
   @override
   void initState() {
@@ -648,60 +649,109 @@ class _InventoryScreenState extends State<InventoryScreen>
                 ],
               ),
               const SizedBox(height: 9),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(l10n.combatStats,
-                    style: const TextStyle(
-                      color: Colors.cyanAccent,
-                      fontFamily: 'Orbitron',
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    )),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10162E),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: Colors.cyanAccent.withAlpha(45)),
+                ),
+                child: Column(
+                  children: [
+                    InkWell(
+                      borderRadius: BorderRadius.circular(5),
+                      onTap: () => setState(() {
+                        _showCombatStatDetails = !_showCombatStatDetails;
+                      }),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(l10n.combatStats,
+                                  style: const TextStyle(
+                                    color: Colors.cyanAccent,
+                                    fontFamily: 'Orbitron',
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  )),
+                            ),
+                            Icon(
+                              _showCombatStatDetails
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                              color: Colors.cyanAccent,
+                              size: 19,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _compactStatChip(
+                              l10n.statHp, '${equippedStats.maxHp}'),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: _compactStatChip(l10n.statArmor,
+                              '${(equippedStats.armorReduction * 100).round()}%'),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: _compactStatChip(l10n.statDamage,
+                              '×${equippedStats.damageMultiplier.toStringAsFixed(2)}'),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: _compactStatChip(l10n.statFireRate,
+                              '×${equippedStats.fireRateMultiplier.toStringAsFixed(2)}'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 5),
-              Wrap(
-                spacing: 5,
-                runSpacing: 5,
-                children: [
-                  _statChip(l10n.statHp, '${equippedStats.maxHp}'),
-                  _statChip(l10n.statArmor,
-                      '${(equippedStats.armorReduction * 100).round()}%'),
-                  _statChip(l10n.statDamage,
-                      '×${equippedStats.damageMultiplier.toStringAsFixed(2)}'),
-                  _statChip(l10n.statFireRate,
-                      '×${equippedStats.fireRateMultiplier.toStringAsFixed(2)}'),
-                  _statChip(l10n.statCrit,
-                      '${(equippedStats.criticalChance * 100).round()}%'),
-                  _statChip(l10n.statCritDamage,
-                      '×${equippedStats.criticalDamageMultiplier.toStringAsFixed(2)}'),
-                  _statChip(
-                      l10n.statProjectile, '${equippedStats.projectileCount}'),
-                  _statChip(l10n.statProjectileSpeed,
-                      '×${equippedStats.projectileSpeedMultiplier.toStringAsFixed(2)}'),
-                  _statChip(
-                      l10n.statPierce,
-                      equippedStats.pierceCount < 0
-                          ? l10n.statPierceAll
-                          : '${equippedStats.pierceCount}'),
-                  _statChip(l10n.statBlast,
-                      '${equippedStats.explosionRadius.round()} px'),
-                  _statChip(l10n.statDrone,
-                      l10n.droneRoleName(equippedStats.droneRole)),
-                  _statChip(l10n.statSkillCooldown,
-                      '×${equippedStats.skillCooldownMultiplier.toStringAsFixed(2)}'),
-                  _statChip(
-                    l10n.statShield,
-                    equippedStats.armorPassive == ArmorPassive.reactive ||
-                            equippedStats.armorPassive ==
-                                ArmorPassive.energyShield ||
-                            equippedStats.droneRole == DroneRole.shield
-                        ? l10n.statReady
-                        : l10n.statOff,
-                  ),
-                  _statChip(l10n.statMovement,
-                      '×${equippedStats.movementMultiplier.toStringAsFixed(2)}'),
-                ],
-              ),
+              if (_showCombatStatDetails)
+                Wrap(
+                  spacing: 5,
+                  runSpacing: 5,
+                  children: [
+                    _statChip(l10n.statCrit,
+                        '${(equippedStats.criticalChance * 100).round()}%'),
+                    _statChip(l10n.statCritDamage,
+                        '×${equippedStats.criticalDamageMultiplier.toStringAsFixed(2)}'),
+                    _statChip(l10n.statProjectile,
+                        '${equippedStats.projectileCount}'),
+                    _statChip(l10n.statProjectileSpeed,
+                        '×${equippedStats.projectileSpeedMultiplier.toStringAsFixed(2)}'),
+                    _statChip(
+                        l10n.statPierce,
+                        equippedStats.pierceCount < 0
+                            ? l10n.statPierceAll
+                            : '${equippedStats.pierceCount}'),
+                    _statChip(l10n.statBlast,
+                        '${equippedStats.explosionRadius.round()} px'),
+                    _statChip(l10n.statDrone,
+                        l10n.droneRoleName(equippedStats.droneRole)),
+                    _statChip(l10n.statSkillCooldown,
+                        '×${equippedStats.skillCooldownMultiplier.toStringAsFixed(2)}'),
+                    _statChip(
+                      l10n.statShield,
+                      equippedStats.armorPassive == ArmorPassive.reactive ||
+                              equippedStats.armorPassive ==
+                                  ArmorPassive.energyShield ||
+                              equippedStats.droneRole == DroneRole.shield
+                          ? l10n.statReady
+                          : l10n.statOff,
+                    ),
+                    _statChip(l10n.statMovement,
+                        '×${equippedStats.movementMultiplier.toStringAsFixed(2)}'),
+                  ],
+                ),
               const SizedBox(height: 12),
               // ── Gacha Buttons ────────────────────────────────────
               Row(
@@ -868,6 +918,45 @@ class _InventoryScreenState extends State<InventoryScreen>
               fontSize: 8,
               fontWeight: FontWeight.w600,
             )),
+      );
+
+  Widget _compactStatChip(String label, String value) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF151b35),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.cyanAccent.withAlpha(50)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(label,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontFamily: 'Orbitron',
+                    fontSize: 7,
+                    fontWeight: FontWeight.w600,
+                  )),
+            ),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'Orbitron',
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  )),
+            ),
+          ],
+        ),
       );
 
   Widget _buildItemAction(BuildContext context, EquipmentItem item,
@@ -1381,25 +1470,11 @@ class _InventoryScreenState extends State<InventoryScreen>
                             fontSize: 11,
                             fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.diamond,
-                            size: 12, color: Colors.cyanAccent),
-                        Text(' $stoneCost   ',
-                            style: TextStyle(
-                                color: gameState.energyStones >= stoneCost
-                                    ? Colors.white
-                                    : Colors.red,
-                                fontSize: 11)),
-                        const Icon(Icons.bolt,
-                            size: 12, color: Colors.amberAccent),
-                        Text(' $coreCost',
-                            style: TextStyle(
-                                color: gameState.energyCores >= coreCost
-                                    ? Colors.white
-                                    : Colors.red,
-                                fontSize: 11)),
-                      ],
+                    UpgradeResourceCosts(
+                      stoneCost: stoneCost,
+                      coreCost: coreCost,
+                      stonesAffordable: gameState.energyStones >= stoneCost,
+                      coresAffordable: gameState.energyCores >= coreCost,
                     ),
                   ],
                 ),
@@ -1443,4 +1518,45 @@ class _InventoryScreenState extends State<InventoryScreen>
       },
     );
   }
+}
+
+class UpgradeResourceCosts extends StatelessWidget {
+  const UpgradeResourceCosts({
+    required this.stoneCost,
+    required this.coreCost,
+    required this.stonesAffordable,
+    required this.coresAffordable,
+    super.key,
+  });
+
+  final int stoneCost;
+  final int coreCost;
+  final bool stonesAffordable;
+  final bool coresAffordable;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+        spacing: 8,
+        runSpacing: 2,
+        children: [
+          _cost(Icons.diamond, stoneCost, Colors.cyanAccent, stonesAffordable),
+          _cost(Icons.bolt, coreCost, Colors.amberAccent, coresAffordable),
+        ],
+      );
+
+  Widget _cost(IconData icon, int amount, Color iconColor, bool affordable) =>
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: iconColor),
+          const SizedBox(width: 2),
+          Text(
+            '$amount',
+            style: TextStyle(
+              color: affordable ? Colors.white : Colors.red,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      );
 }

@@ -15,7 +15,8 @@ class Ship extends GameObject {
     final usesStandaloneArt = switch (shipConfig.model) {
       ShipModel.superFighter ||
       ShipModel.riftDancer ||
-      ShipModel.bastion =>
+      ShipModel.bastion ||
+      ShipModel.guardian =>
         true,
       _ => false,
     };
@@ -53,7 +54,10 @@ class Ship extends GameObject {
     addChild(_sprite);
 
     if (usesStandaloneArt) {
-      for (final wingX in const [-31.0, 31.0]) {
+      final wingGlowOffsets = shipConfig.model == ShipModel.guardian
+          ? const [-23.0, 23.0]
+          : const [-31.0, 31.0];
+      for (final wingX in wingGlowOffsets) {
         final wingGlow = Sprite(texture: f.sheet["fire_particle.png"]!)
           ..position = Offset(wingX, 20.0)
           ..scale = 0.16

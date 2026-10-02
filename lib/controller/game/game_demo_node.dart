@@ -8,6 +8,7 @@ import 'package:mini__game2/controller/explosions.dart';
 import 'package:mini__game2/controller/flash.dart';
 import 'package:mini__game2/controller/game/game_laser.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
+import 'package:mini__game2/controller/enemy/projectile_style.dart';
 import 'package:mini__game2/controller/game/game_level.dart';
 import 'package:mini__game2/controller/game/game_level_label.dart';
 import 'package:mini__game2/controller/game/game_object_factory.dart';
@@ -42,6 +43,7 @@ class GameDemoNode extends NodeWithSize {
       this._images,
       this._spritesGame,
       this._spritesUI,
+      this._enemyProjectileAnimations,
       this._sounds,
       this._gameState,
       this._isEventMode,
@@ -90,8 +92,13 @@ class GameDemoNode extends NodeWithSize {
     _playerState.position = const Offset(0.0, 20.0);
     addChild(_playerState);
 
-    _objectFactory =
-        GameObjectFactory(_spritesGame, _sounds, _level, _playerState);
+    _objectFactory = GameObjectFactory(
+      _spritesGame,
+      _sounds,
+      _level,
+      _playerState,
+      _enemyProjectileAnimations,
+    );
 
     _level.ship = Ship(_objectFactory);
     _level.ship.setupActions();
@@ -134,6 +141,8 @@ class GameDemoNode extends NodeWithSize {
   final SoundAssets _sounds;
   final SpriteSheet _spritesGame;
   final SpriteSheet _spritesUI;
+  final Map<EnemyProjectileStyle, List<SpriteTexture>>
+      _enemyProjectileAnimations;
 
   // Callback
   final GameOverCallback _gameOverCallback;

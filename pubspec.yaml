@@ -44,6 +44,12 @@ flutter:
     - assets/nebula.png
     - assets/sprites.json
     - assets/sprites.png
+    - assets/enemy_projectile_animation.png
+    - assets/enemy_projectile_plasma.png
+    - assets/enemy_projectile_seeker.png
+    - assets/enemy_projectile_venom.png
+    - assets/enemy_projectile_rift.png
+    - assets/enemy_projectile_rail.png
     - assets/ships.json
     - assets/ships.png
     - assets/starfield.png

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
 import 'package:mini__game2/controller/enemy/boss_attack_patterns.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
+import 'package:mini__game2/controller/enemy/projectile_style.dart';
 import 'package:mini__game2/controller/enemy/scout.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
 import 'package:mini__game2/model/custom_actions.dart';
@@ -40,11 +41,13 @@ class BossCarrier extends Obstacle {
   late PowerBar _powerBar;
 
   final int _bossLevel;
-  int _spawnTimer = 120;
-  int _attackTimer = 75;
+  int _spawnTimer = 240;
+  int _attackTimer = GameBalance.bossAttackCooldown(75);
+  int _volley = 0;
+  int _attackStyle = 0;
   double _lockedAngle = 0.0;
 
-  int get _scoutLevel => (_bossLevel ~/ 3).clamp(0, 2);
+  int get _scoutLevel => (_bossLevel ~/ 3).clamp(0, 2).toInt();
 
   @override
   void update(double dt) {
@@ -60,6 +63,12 @@ class BossCarrier extends Obstacle {
     // The carrier must pressure the player itself; its scouts are support,
     // not its only attack. Fire a short spread at the player's position.
     if (_attackTimer == 24) {
+      final tier = GameBalance.bossAttackTier(_bossLevel);
+      _attackStyle = tier >= 2
+          ? _volley % 3
+          : tier >= 1
+              ? _volley % 2
+              : 0;
       _lockedAngle = BossAttackPatterns.angleToShip(f, position);
       BossAttackPatterns.telegraphAim(f, position,
           color: const Color(0xFF72FF8A));
@@ -70,17 +79,30 @@ class BossCarrier extends Obstacle {
         f,
         origin: position,
         centerAngle: _lockedAngle,
-        count: 3,
-        spreadDegrees: 22.0,
-        speed: 4.5 + (_bossLevel * 0.15),
+        count: _attackStyle == 2
+            ? 2
+            : _attackStyle == 1
+                ? 4
+                : 3,
+        spreadDegrees: _attackStyle == 1 ? 46.0 : 22.0,
+        speed: _attackStyle == 2 ? 3.8 : 4.5,
         color: const Color(0xFF72FF8A),
-        motion: EnemyProjectileMotion.weaving,
-        weaveAmplitude: 3.0,
+        bossLevel: _bossLevel,
+        style: EnemyProjectileStyle.plasmaOrb,
+        motion: _attackStyle == 2
+            ? EnemyProjectileMotion.seeking
+            : EnemyProjectileMotion.weaving,
+        turnRate: 0.006,
+        weaveAmplitude: _attackStyle == 1 ? 1.8 : 3.0,
         shipDamage: 0.8,
         hitRadius: 7.0,
         spawnDistance: 42.0,
       );
-      _attackTimer = (84 - _bossLevel * 3).clamp(42, 84);
+      _volley++;
+      _attackTimer = GameBalance.bossAttackCooldown(
+        (84 - _bossLevel * 3).clamp(42, 84).toInt(),
+        level: _bossLevel,
+      );
     }
 
     if (_spawnTimer <= 0) {
@@ -93,7 +115,7 @@ class BossCarrier extends Obstacle {
       EnemyScout scout2 = EnemyScout(f, _scoutLevel, _bossLevel);
       f.addGameObject(scout2, position + const Offset(40.0, 20.0));
 
-      _spawnTimer = 180; // 3 seconds
+      _spawnTimer = GameBalance.bossAttackCooldown(240, level: _bossLevel);
     }
   }
 

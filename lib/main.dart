@@ -1,8 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mini__game2/controller/persistant_game_state.dart';
 import 'package:mini__game2/controller/rewarded_ad_service.dart';
+import 'package:mini__game2/controller/enemy/projectile_style.dart';
 import 'package:mini__game2/controller/setting/sound_assets.dart';
 import 'package:mini__game2/l10n/generated/app_localizations.dart';
 import 'package:mini__game2/view/game/game_demo.dart';
@@ -22,6 +25,7 @@ late ImageMap imageMap;
 late SpriteSheet spriteSheet;
 late SpriteSheet shipSpriteSheet;
 late SpriteSheet spriteSheetUI;
+late Map<EnemyProjectileStyle, List<SpriteTexture>> enemyProjectileAnimations;
 
 late SoundAssets sounds;
 
@@ -73,6 +77,12 @@ main() async {
   await imageMap.load(<String>[
     'assets/nebula.png',
     'assets/sprites.png',
+    'assets/enemy_projectile_animation.png',
+    'assets/enemy_projectile_plasma.png',
+    'assets/enemy_projectile_seeker.png',
+    'assets/enemy_projectile_venom.png',
+    'assets/enemy_projectile_rift.png',
+    'assets/enemy_projectile_rail.png',
     'assets/ships.png',
     'assets/starfield.png',
     'assets/space_warfield.png',
@@ -94,6 +104,7 @@ main() async {
     'assets/ships/ship_superfighter.png',
     'assets/ships/ship_rift_dancer.png',
     'assets/ships/ship_bastion.png',
+    'assets/ships/ship_guardian.png',
   ]);
   // Tải âm anh
   await settingSound();
@@ -117,8 +128,33 @@ main() async {
     jsonDefinition: json,
   );
 
+  enemyProjectileAnimations = {
+    for (final style in EnemyProjectileStyle.values)
+      style: _createProjectileFrames(imageMap[style.assetPath]!),
+  };
+
   // chạy ứng  dụng và gọi tới view đâu tiên là game demo
   runApp(const SplashWrapper());
+}
+
+List<SpriteTexture> _createProjectileFrames(ui.Image image) {
+  const columns = 2;
+  const rows = 4;
+  final atlas = SpriteTexture(image);
+  final frameWidth = image.width / columns;
+  final frameHeight = image.height / rows;
+
+  return List<SpriteTexture>.generate(columns * rows, (index) {
+    return atlas.textureFromRect(
+      Rect.fromLTWH(
+        (index % columns) * frameWidth,
+        (index ~/ columns) * frameHeight,
+        frameWidth,
+        frameHeight,
+      ),
+      'enemy_projectile_${image.hashCode}_$index.png',
+    );
+  });
 }
 
 settingSound() async {
@@ -167,7 +203,7 @@ class _SplashWrapperState extends State<SplashWrapper> {
 
   Future<void> _loadLocale() async {
     final preferences = await SharedPreferences.getInstance();
-    final languageCode = preferences.getString('app_language') ?? 'system';
+    final languageCode = preferences.getString('app_language') ?? 'en';
     if (!mounted) return;
     setState(() {
       _locale = languageCode == 'system' ? null : Locale(languageCode);

@@ -1,8 +1,8 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mini__game2/controller/enemy/laser.dart';
 import 'package:mini__game2/controller/enemy/boss_attack_patterns.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
+import 'package:mini__game2/controller/enemy/projectile_style.dart';
 import 'package:mini__game2/controller/game/game_coin.dart';
 import 'package:mini__game2/model/custom_actions.dart';
 import 'package:mini__game2/controller/explosions.dart';
@@ -12,16 +12,15 @@ import 'package:mini__game2/controller/game/game_balance.dart';
 import 'package:mini__game2/controller/power/power_bar.dart';
 import 'package:mini__game2/main.dart';
 import 'package:spritewidget/spritewidget.dart';
-import 'package:vector_math/vector_math_64.dart' hide Colors;
 
 /// BOSS NOVA — Pulsing star core. Fires radial bursts.
 class BossNova extends Obstacle {
-  BossNova(GameObjectFactory f, int level) : super(f) {
+  BossNova(GameObjectFactory f, this._bossLevel) : super(f) {
     radius = 52.0;
     _sprite = Sprite.fromImage(imageMap['assets/boss_nova_clean.png']!);
     _sprite.scale = 0.12;
     addChild(_sprite);
-    maxDamage = GameBalance.bossHealth(level, 1.0);
+    maxDamage = GameBalance.bossHealth(_bossLevel, 1.0);
 
     _powerBar = PowerBar(const Size(70.0, 10.0));
     _powerBar.pivot = const Offset(0.5, 0.5);
@@ -34,10 +33,13 @@ class BossNova extends Obstacle {
 
   late Sprite _sprite;
   late PowerBar _powerBar;
-  int _countdown = 90;
+  final int _bossLevel;
+  int _countdown = GameBalance.bossAttackCooldown(90);
   int _burstCount = 0;
   int _phase = 1;
+  int _nextAttackPattern = 0;
   double _angle = 0.0;
+  double _lockedAngle = 0.0;
 
   @override
   void setupActions() {
@@ -53,33 +55,90 @@ class BossNova extends Obstacle {
   void update(double dt) {
     _countdown--;
     if (_countdown == 26) {
-      BossAttackPatterns.telegraphRadial(f, position,
-          color: const Color(0xFFFFD35A));
+      final tier = GameBalance.bossAttackTier(_bossLevel);
+      final patternCount = tier >= 2
+          ? 3
+          : tier >= 1
+              ? 2
+              : 1;
+      _nextAttackPattern = _burstCount % patternCount;
+      if (_nextAttackPattern == 0) {
+        BossAttackPatterns.telegraphRadial(f, position,
+            color: const Color(0xFFFFD35A));
+      } else {
+        _lockedAngle = BossAttackPatterns.angleToShip(f, position);
+        BossAttackPatterns.telegraphAim(f, position,
+            color: const Color(0xFFFFD35A));
+      }
     }
     if (_countdown <= 0) {
       f.sounds.playEffect("laser");
-      // Radial burst — fires N lasers outward
-      int numShots = 6 + _phase * 2 + (_burstCount % 2) * 2;
-      for (int i = 0; i < numShots; i++) {
-        double angle = _angle + (360.0 / numShots) * i;
-        EnemyLaser laser = EnemyLaser(
-          f,
-          angle + 90.0,
-          3.8,
-          const Color(0xFFFFDD44),
-          motion: EnemyProjectileMotion.weaving,
-          weaveAmplitude: 3.0,
-          shipDamage: 0.75,
-          highVisibility: true,
-        );
-        double rad = radians(angle);
-        laser.position =
-            position + Offset(math.cos(rad) * 40, math.sin(rad) * 40);
-        f.level.addChild(laser);
+      switch (_nextAttackPattern) {
+        case 1:
+          // Later Novas mix their familiar ring with an aimed plasma fan.
+          BossAttackPatterns.fireFan(
+            f,
+            origin: position,
+            centerAngle: _lockedAngle,
+            count: 4 + _phase,
+            spreadDegrees: 32.0,
+            speed: 3.7,
+            color: const Color(0xFFFFDD44),
+            bossLevel: _bossLevel,
+            style: EnemyProjectileStyle.plasmaOrb,
+            motion: EnemyProjectileMotion.weaving,
+            weaveAmplitude: 1.8,
+            shipDamage: 0.7,
+            hitRadius: 7.0,
+            spawnDistance: 40.0,
+            highVisibility: true,
+          );
+        case 2:
+          // The late-game pattern crosses two offset lanes instead of
+          // repeating the same evenly spaced ring.
+          for (final side in const [-1.0, 1.0]) {
+            BossAttackPatterns.fireFan(
+              f,
+              origin: position + Offset(side * 26.0, 0.0),
+              centerAngle: _lockedAngle + side * 14.0,
+              count: 2 + _phase,
+              spreadDegrees: 16.0,
+              speed: 4.0,
+              color: const Color(0xFFFFDD44),
+              bossLevel: _bossLevel,
+              style: EnemyProjectileStyle.plasmaOrb,
+              motion: EnemyProjectileMotion.weaving,
+              weaveAmplitude: 1.5,
+              shipDamage: 0.65,
+              hitRadius: 7.0,
+              spawnDistance: 32.0,
+              highVisibility: true,
+            );
+          }
+        default:
+          // The early radial attack leaves a readable lane that rotates
+          // farther with each boss tier.
+          final numShots = 6 + _phase * 2 + (_burstCount % 2) * 2;
+          BossAttackPatterns.fireRadial(
+            f,
+            origin: position,
+            count: numShots,
+            startAngle: _angle,
+            speed: 3.8,
+            color: const Color(0xFFFFDD44),
+            bossLevel: _bossLevel,
+            style: EnemyProjectileStyle.plasmaOrb,
+            motion: EnemyProjectileMotion.weaving,
+            weaveAmplitude: 2.4,
+            shipDamage: 0.75,
+            hitRadius: 7.0,
+            spawnDistance: 40.0,
+            highVisibility: true,
+          );
       }
-      _angle += 15; // Rotate pattern each burst
+      _angle += 15.0 + GameBalance.bossAttackTier(_bossLevel) * 4.0;
       _burstCount++;
-      _countdown = 60;
+      _countdown = GameBalance.bossAttackCooldown(60, level: _bossLevel);
     }
   }
 
@@ -128,12 +187,12 @@ class BossNova extends Obstacle {
 
 /// BOSS PHANTOM — Cloaking boss. Periodically turns invisible.
 class BossPhantom extends Obstacle {
-  BossPhantom(GameObjectFactory f, int level) : super(f) {
+  BossPhantom(GameObjectFactory f, this._bossLevel) : super(f) {
     radius = 38.0;
     _sprite = Sprite.fromImage(imageMap['assets/boss_phantom_clean.png']!);
     _sprite.scale = 0.10;
     addChild(_sprite);
-    maxDamage = GameBalance.bossHealth(level, 0.85);
+    maxDamage = GameBalance.bossHealth(_bossLevel, 0.85);
 
     _powerBar = PowerBar(const Size(60.0, 10.0));
     _powerBar.pivot = const Offset(0.5, 0.5);
@@ -146,7 +205,8 @@ class BossPhantom extends Obstacle {
 
   late Sprite _sprite;
   late PowerBar _powerBar;
-  int _stateTimer = 150;
+  final int _bossLevel;
+  int _stateTimer = GameBalance.bossAttackCooldown(150);
   int _state = 0; // 0: visible+moving, 1: cloaking, 2: cloaked+attacking
   bool _cloaked = false;
   double _lockedAngle = 0.0;
@@ -180,7 +240,7 @@ class BossPhantom extends Obstacle {
     } else if (_state == 2 && _stateTimer <= 0) {
       // Decloak
       _state = 0;
-      _stateTimer = 180;
+      _stateTimer = GameBalance.bossAttackCooldown(180, level: _bossLevel);
       _cloaked = false;
       canBeDamaged = true;
       _sprite.motions.run(MotionTween<double>(
@@ -190,12 +250,12 @@ class BossPhantom extends Obstacle {
           duration: 0.5));
     }
 
-    if (_cloaked && _stateTimer % 45 == 24) {
+    if (_cloaked && _stateTimer == 64) {
       _lockedAngle = BossAttackPatterns.angleToShip(f, position);
       BossAttackPatterns.telegraphAim(f, position,
           color: const Color(0xFFFF69DC));
     }
-    if (_cloaked && _stateTimer % 45 == 0) {
+    if (_cloaked && _stateTimer == 40) {
       _fireTriple(_lockedAngle);
     }
   }
@@ -210,6 +270,8 @@ class BossPhantom extends Obstacle {
       spreadDegrees: 30.0,
       speed: 5.5,
       color: const Color(0xFFFF4DFF),
+      bossLevel: _bossLevel,
+      style: EnemyProjectileStyle.riftShard,
       motion: EnemyProjectileMotion.weaving,
       weaveAmplitude: 3.5,
       shipDamage: 0.8,
@@ -260,13 +322,13 @@ class BossPhantom extends Obstacle {
 
 /// BOSS TITAN — Slow tank. Fires massive high-damage railgun shells.
 class BossTitan extends Obstacle {
-  BossTitan(GameObjectFactory f, int level) : super(f) {
+  BossTitan(GameObjectFactory f, this._bossLevel) : super(f) {
     radius = 60.0;
     damageResistance = 0.12;
     _sprite = Sprite.fromImage(imageMap['assets/boss_titan_clean.png']!);
     _sprite.scale = 0.14;
     addChild(_sprite);
-    maxDamage = GameBalance.bossHealth(level, 1.25);
+    maxDamage = GameBalance.bossHealth(_bossLevel, 1.25);
 
     _powerBar = PowerBar(const Size(90.0, 12.0));
     _powerBar.pivot = const Offset(0.5, 0.5);
@@ -279,7 +341,8 @@ class BossTitan extends Obstacle {
 
   late Sprite _sprite;
   late PowerBar _powerBar;
-  int _countdown = 200; // Slow fire rate
+  final int _bossLevel;
+  int _countdown = GameBalance.bossAttackCooldown(200);
   int _phase = 1;
   double _lockedAngle = 0.0;
 
@@ -308,14 +371,17 @@ class BossTitan extends Obstacle {
         centerAngle: _lockedAngle,
         count: _phase,
         spreadDegrees: 8.0 + (_phase - 1) * 8.0,
-        speed: 14.0,
+        speed: 10.5,
         color: const Color(0xFFFF4400),
+        bossLevel: _bossLevel,
+        style: EnemyProjectileStyle.railSlug,
         shipDamage: 1.5,
-        hitRadius: 15.0,
+        hitRadius: 11.0,
         spawnDistance: 50.0,
         highVisibility: true,
       );
-      _countdown = 240 ~/ _phase;
+      _countdown =
+          GameBalance.bossAttackCooldown(240 ~/ _phase, level: _bossLevel);
     }
   }
 
@@ -361,13 +427,13 @@ class BossTitan extends Obstacle {
 
 /// BOSS VENOM — Bio-mechanical alien. Fires toxic homing shots.
 class BossVenom extends Obstacle {
-  BossVenom(GameObjectFactory f, int level) : super(f) {
+  BossVenom(GameObjectFactory f, this._bossLevel) : super(f) {
     radius = 44.0;
     // No custom image — draw with shader using boss_0 tinted green
     _sprite = Sprite.fromImage(imageMap['assets/boss_venom_clean.png']!);
     _sprite.scale = 0.09;
     addChild(_sprite);
-    maxDamage = GameBalance.bossHealth(level, 0.95);
+    maxDamage = GameBalance.bossHealth(_bossLevel, 0.95);
 
     _powerBar = PowerBar(const Size(65.0, 10.0));
     _powerBar.pivot = const Offset(0.5, 0.5);
@@ -380,7 +446,8 @@ class BossVenom extends Obstacle {
 
   late Sprite _sprite;
   late PowerBar _powerBar;
-  int _countdown = 80;
+  final int _bossLevel;
+  int _countdown = GameBalance.bossAttackCooldown(80);
   int _volley = 0;
   double _lockedAngle = 0.0;
 
@@ -420,6 +487,8 @@ class BossVenom extends Obstacle {
           spreadDegrees: 46.0,
           speed: 5.0,
           color: const Color(0xFF44FF44),
+          bossLevel: _bossLevel,
+          style: EnemyProjectileStyle.venomGlob,
           motion: EnemyProjectileMotion.weaving,
           weaveAmplitude: 5.0,
           shipDamage: 0.75,
@@ -434,6 +503,8 @@ class BossVenom extends Obstacle {
           spreadDegrees: 26.0,
           speed: 3.8,
           color: const Color(0xFF7DFF54),
+          bossLevel: _bossLevel,
+          style: EnemyProjectileStyle.seekerMissile,
           motion: EnemyProjectileMotion.seeking,
           turnRate: 0.008,
           shipDamage: 0.8,
@@ -442,7 +513,7 @@ class BossVenom extends Obstacle {
         );
       }
       _volley++;
-      _countdown = 76;
+      _countdown = GameBalance.bossAttackCooldown(76, level: _bossLevel);
     }
   }
 
@@ -484,14 +555,14 @@ class BossVenom extends Obstacle {
 
 /// BOSS COLOSSUS — Massive siege platform. Fires volleys from multiple turrets.
 class BossColossus extends Obstacle {
-  BossColossus(GameObjectFactory f, int level) : super(f) {
+  BossColossus(GameObjectFactory f, this._bossLevel) : super(f) {
     radius = 58.0;
     damageResistance = 0.15;
     // Draw using boss_2 tinted dark with orange highlights
     _sprite = Sprite.fromImage(imageMap['assets/boss_colossus_clean.png']!);
     _sprite.scale = 0.12;
     addChild(_sprite);
-    maxDamage = GameBalance.bossHealth(level, 1.15);
+    maxDamage = GameBalance.bossHealth(_bossLevel, 1.15);
 
     _powerBar = PowerBar(const Size(85.0, 12.0));
     _powerBar.pivot = const Offset(0.5, 0.5);
@@ -504,7 +575,8 @@ class BossColossus extends Obstacle {
 
   late Sprite _sprite;
   late PowerBar _powerBar;
-  int _countdown = 56;
+  final int _bossLevel;
+  int _countdown = GameBalance.bossAttackCooldown(56);
   int _volley = 0;
   int _phase = 1;
   double _lockedAngle = 0.0;
@@ -567,6 +639,8 @@ class BossColossus extends Obstacle {
           spreadDegrees: 12.0 + _phase * 5.0,
           speed: 7.0 + _phase * 0.35,
           color: const Color(0xFFFF8800),
+          bossLevel: _bossLevel,
+          style: EnemyProjectileStyle.railSlug,
           motion: EnemyProjectileMotion.weaving,
           weaveAmplitude: 2.8,
           shipDamage: 0.9,
@@ -575,7 +649,10 @@ class BossColossus extends Obstacle {
         );
       }
       _volley++;
-      _countdown = 56 - (_phase - 1) * 8;
+      _countdown = GameBalance.bossAttackCooldown(
+        56 - (_phase - 1) * 8,
+        level: _bossLevel,
+      );
     }
   }
 

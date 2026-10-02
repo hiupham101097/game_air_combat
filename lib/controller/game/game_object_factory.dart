@@ -10,11 +10,13 @@ import 'package:mini__game2/controller/asteroid/small.dart';
 import 'package:mini__game2/controller/enemy/boss.dart';
 import 'package:mini__game2/controller/enemy/boss_laser.dart';
 import 'package:mini__game2/controller/enemy/boss_carrier.dart';
+import 'package:mini__game2/controller/enemy/boss_dreadnought.dart';
 import 'package:mini__game2/controller/enemy/boss_extended.dart';
 import 'package:mini__game2/controller/enemy/destroyer.dart';
 import 'package:mini__game2/controller/enemy/elite_enemy.dart';
 import 'package:mini__game2/controller/enemy/scout.dart';
 import 'package:mini__game2/controller/enemy/obstacle.dart';
+import 'package:mini__game2/controller/enemy/projectile_style.dart';
 // import 'package:mini__game2/controller/game/game_demo_node.dart';
 import 'package:mini__game2/controller/game/game_level.dart';
 import 'package:mini__game2/controller/game/game_balance.dart';
@@ -26,12 +28,14 @@ import 'package:mini__game2/main.dart';
 import 'package:spritewidget/spritewidget.dart';
 
 class GameObjectFactory {
-  GameObjectFactory(this.sheet, this.sounds, this.level, this.playerState);
+  GameObjectFactory(this.sheet, this.sounds, this.level, this.playerState,
+      this.projectileAnimations);
 
   SpriteSheet sheet;
   SoundAssets sounds;
   Level level;
   PlayerState playerState;
+  final Map<EnemyProjectileStyle, List<SpriteTexture>> projectileAnimations;
 
   void addAsteroids(int level, double yPos) {
     final int numAsteroids = (7 + level * 2).clamp(7, 24);
@@ -170,7 +174,7 @@ class GameObjectFactory {
 
   void addBossFight(int level, double yPos) {
     Obstacle boss;
-    int bossType = level % 8; // Rotate through 8 boss types
+    int bossType = level % 9; // Rotate through 9 boss types
 
     switch (bossType) {
       case 0:
@@ -194,8 +198,11 @@ class GameObjectFactory {
       case 6:
         boss = BossVenom(this, level);
         break;
-      default:
+      case 7:
         boss = BossColossus(this, level);
+        break;
+      default:
+        boss = BossDreadnought(this, level);
     }
 
     // Score reflects the encounter tier and grows predictably with level.
@@ -207,25 +214,31 @@ class GameObjectFactory {
     addGameObject(boss, pos);
     playerState.boss = boss;
 
-    int destroyerLevel = (level - 1 ~/ 3).clamp(0, 2);
+    // Dreadnought deploys its own fighter squadrons during the encounter.
+    if (boss is! BossDreadnought) {
+      int destroyerLevel = ((level - 1) ~/ 3).clamp(0, 2).toInt();
 
-    // Add boss's helpers
-    if (level >= 1) {
-      EnemyDestroyer destroyer0 = EnemyDestroyer(this, destroyerLevel, level);
-      addGameObject(
-          destroyer0, Offset(-80.0, yPos + chunkSpacing / 2.0 + 70.0));
-
-      EnemyDestroyer destroyer1 = EnemyDestroyer(this, destroyerLevel, level);
-      addGameObject(destroyer1, Offset(80.0, yPos + chunkSpacing / 2.0 + 70.0));
-
-      if (level >= 2) {
+      // Add boss's helpers
+      if (level >= 1) {
         EnemyDestroyer destroyer0 = EnemyDestroyer(this, destroyerLevel, level);
         addGameObject(
-            destroyer0, Offset(-80.0, yPos + chunkSpacing / 2.0 - 70.0));
+            destroyer0, Offset(-80.0, yPos + chunkSpacing / 2.0 + 70.0));
 
         EnemyDestroyer destroyer1 = EnemyDestroyer(this, destroyerLevel, level);
         addGameObject(
-            destroyer1, Offset(80.0, yPos + chunkSpacing / 2.0 - 70.0));
+            destroyer1, Offset(80.0, yPos + chunkSpacing / 2.0 + 70.0));
+
+        if (level >= 2) {
+          EnemyDestroyer destroyer0 =
+              EnemyDestroyer(this, destroyerLevel, level);
+          addGameObject(
+              destroyer0, Offset(-80.0, yPos + chunkSpacing / 2.0 - 70.0));
+
+          EnemyDestroyer destroyer1 =
+              EnemyDestroyer(this, destroyerLevel, level);
+          addGameObject(
+              destroyer1, Offset(80.0, yPos + chunkSpacing / 2.0 - 70.0));
+        }
       }
     }
   }
